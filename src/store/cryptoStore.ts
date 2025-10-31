@@ -40,12 +40,12 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      // First try to get data from IndexedDB
+      // Read directly from IndexedDB
       const [cachedData, cachedUpdatedAt] = await Promise.all([getCryptoData(), getLastUpdated()]);
 
       if (cachedData.length > 0) {
-        // Use cached data initially
-        const initialCryptos = cachedData.slice(0, 10); // Only first 10 for initial load
+        // Show cached snapshot instantly and stop here (no API on initial load)
+        const initialCryptos = cachedData.slice(0, 10);
         set({
           cryptocurrencies: cachedData,
           filteredCryptos: initialCryptos,
@@ -53,17 +53,15 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           loading: false,
           lastUpdated: cachedUpdatedAt ?? null,
         });
+        return;
       }
 
-      // Then fetch fresh data from API
+      // No cache found: fetch once to bootstrap the cache
       const apiResponse = await fetchCryptocurrencies(1, 100);
       const freshData = apiResponse.data.cryptoCurrencyList;
-
-      // Save fresh data to IndexedDB
       await saveCryptoData(freshData);
 
-      // Update state with fresh data
-      const initialCryptos = freshData.slice(0, 10); // Only first 10 for initial load
+      const initialCryptos = freshData.slice(0, 10);
       set({
         cryptocurrencies: freshData,
         filteredCryptos: initialCryptos,
