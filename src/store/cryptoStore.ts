@@ -42,7 +42,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   searchTerm: '',
   refreshInterval: null,
   lastUpdated: null,
-
   fetchInitialData: async () => {
     set({ loading: true, error: null });
     try {
@@ -86,30 +85,39 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   goToPage: async (page: number) => {
     set({ loading: true });
     try {
-      const { pageSize } = get();
-      const cached = await getCryptoDataByPage(page - 1, pageSize);
-      if (cached.length > 0) {
-        set({
-          cryptocurrencies: cached as Cryptocurrency[],
-          filteredCryptos: (cached as Cryptocurrency[]).slice(0, 10),
-          currentPage: page,
-          loading: false,
-          displayedCount: 10,
-        });
-        return;
+      const { pageSize, displayedCount } = get();
+      const desiredStartIndex = (page - 1) * Math.max(displayedCount, 1);
+      const baseIndex = Math.floor(desiredStartIndex / pageSize); // 0-based server page index
+      const offset = desiredStartIndex % pageSize;
+
+      let baseData = await getCryptoDataByPage(baseIndex, pageSize);
+      if (baseData.length === 0) {
+        const resp = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
+        baseData = resp.data.cryptoCurrencyList as Cryptocurrency[];
+        const totalCount = parseInt(resp.data.totalCount, 10);
+        await saveCryptoPage(baseData, totalCount);
       }
-      const apiResponse = await fetchCryptocurrenciesPage(page, pageSize);
-      const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
-      const totalCount = parseInt(apiResponse.data.totalCount, 10);
-      await saveCryptoPage(freshData, totalCount);
+
+      // If window spans into next server page, merge in next page
+      let combined = baseData as Cryptocurrency[];
+      const needed = offset + displayedCount;
+      if (needed > pageSize) {
+        let nextData = await getCryptoDataByPage(baseIndex + 1, pageSize);
+        if (nextData.length === 0) {
+          const resp2 = await fetchCryptocurrenciesPage(baseIndex + 2, pageSize);
+          nextData = resp2.data.cryptoCurrencyList as Cryptocurrency[];
+          const totalCount2 = parseInt(resp2.data.totalCount, 10);
+          await saveCryptoPage(nextData, totalCount2);
+        }
+        combined = [...combined, ...(nextData as Cryptocurrency[])];
+      }
+
+      const window = combined.slice(offset, offset + displayedCount);
       set({
-        cryptocurrencies: freshData,
-        filteredCryptos: freshData.slice(0, 10),
-        totalItems: totalCount,
+        cryptocurrencies: baseData as Cryptocurrency[],
+        filteredCryptos: window,
         currentPage: page,
         loading: false,
-        lastUpdated: Date.now(),
-        displayedCount: 10,
       });
     } catch (error) {
       set({
@@ -125,14 +133,34 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   },
 
   showMore: async () => {
-    const { cryptocurrencies, displayedCount } = get();
-    const newCount = Math.min(displayedCount + 50, 200, cryptocurrencies.length);
-    set({
-      filteredCryptos: cryptocurrencies.slice(0, newCount),
-      displayedCount: newCount,
-    });
-    // Ensure IndexedDB also has these expanded rows persisted
-    await saveCryptoPage(cryptocurrencies.slice(0, newCount));
+    const { currentPage, pageSize, displayedCount } = get();
+    const newCount = Math.min(displayedCount + 50, 200);
+    const desiredStartIndex = (currentPage - 1) * newCount;
+    const baseIndex = Math.floor(desiredStartIndex / pageSize);
+    const offset = desiredStartIndex % pageSize;
+
+    let baseData = await getCryptoDataByPage(baseIndex, pageSize);
+    if (baseData.length === 0) {
+      const resp = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
+      baseData = resp.data.cryptoCurrencyList as Cryptocurrency[];
+      const totalCount = parseInt(resp.data.totalCount, 10);
+      await saveCryptoPage(baseData, totalCount);
+    }
+    let combined = baseData as Cryptocurrency[];
+    const needed = offset + newCount;
+    if (needed > pageSize) {
+      let nextData = await getCryptoDataByPage(baseIndex + 1, pageSize);
+      if (nextData.length === 0) {
+        const resp2 = await fetchCryptocurrenciesPage(baseIndex + 2, pageSize);
+        nextData = resp2.data.cryptoCurrencyList as Cryptocurrency[];
+        const totalCount2 = parseInt(resp2.data.totalCount, 10);
+        await saveCryptoPage(nextData, totalCount2);
+      }
+      combined = [...combined, ...(nextData as Cryptocurrency[])];
+    }
+
+    const window = combined.slice(offset, offset + newCount);
+    set({ filteredCryptos: window, displayedCount: newCount });
   },
 
   setSearchTerm: (term: string) => {
@@ -142,20 +170,33 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           crypto.name.toLowerCase().includes(term.toLowerCase()) ||
           crypto.symbol.toLowerCase().includes(term.toLowerCase())
       );
-      return { searchTerm: term, filteredCryptos: filtered };
+      return { searchTerm: term, filteredCryptos: filtered.slice(0, state.displayedCount) };
     });
   },
 
   refreshData: async () => {
     try {
       const { currentPage, pageSize, displayedCount } = get();
-      const apiResponse = await fetchCryptocurrenciesPage(currentPage, pageSize);
+      const desiredStartIndex = (currentPage - 1) * Math.max(displayedCount, 1);
+      const baseIndex = Math.floor(desiredStartIndex / pageSize);
+
+      const apiResponse = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
       const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
       const totalCount = parseInt(apiResponse.data.totalCount, 10);
       await saveCryptoPage(freshData, totalCount);
+      const offset = desiredStartIndex % pageSize;
+      let combined = freshData;
+      const needed = offset + displayedCount;
+      if (needed > pageSize) {
+        const resp2 = await fetchCryptocurrenciesPage(baseIndex + 2, pageSize);
+        const nextData = resp2.data.cryptoCurrencyList as Cryptocurrency[];
+        await saveCryptoPage(nextData, parseInt(resp2.data.totalCount, 10));
+        combined = [...combined, ...nextData];
+      }
+      const window = combined.slice(offset, offset + displayedCount);
       set({
         cryptocurrencies: freshData,
-        filteredCryptos: freshData.slice(0, Math.min(displayedCount, freshData.length)),
+        filteredCryptos: window,
         totalItems: totalCount,
         lastUpdated: Date.now(),
       });
