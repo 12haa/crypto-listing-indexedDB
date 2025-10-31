@@ -1,23 +1,24 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useCryptoStore } from '@/store/cryptoStore';
+import { useCryptoStore } from '../store/cryptoStore';
 import CryptoItem from '@/components/CryptoItem';
-import CryptoItemSkeleton from '@/components/CryptoItemSkeleton';
-// import Pagination from '@/components/Pagination';
+import Pagination from '@/components/Pagination';
+import { Cryptocurrency } from '@/services/api';
 
 const CryptoListPage = () => {
   const {
     filteredCryptos,
     error,
     totalItems,
-    // currentPage,
-    // searchTerm,
+    currentPage,
+    pageSize,
     setSearchTerm,
     fetchInitialData,
     startAutoRefresh,
     stopAutoRefresh,
     lastUpdated,
+    goToPage,
   } = useCryptoStore();
 
   const [localSearchTerm, setLocalSearchTerm] = useState('');
@@ -41,8 +42,7 @@ const CryptoListPage = () => {
     };
   }, [localSearchTerm, setSearchTerm]);
 
-  // Remaining items not yet rendered (skeletons)
-  const remainingCount = Math.max(0, totalItems - filteredCryptos.length);
+  const totalPages = Math.max(1, Math.ceil(totalItems / (pageSize || 1)));
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -174,18 +174,21 @@ const CryptoListPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCryptos.map((crypto) => (
+              {filteredCryptos.map((crypto: Cryptocurrency) => (
                 <CryptoItem key={crypto.id} crypto={crypto} />
               ))}
-              {remainingCount > 0 &&
-                Array.from({ length: remainingCount }).map((_, index) => (
-                  <CryptoItemSkeleton key={`skeleton-${index}`} />
-                ))}
             </tbody>
           </table>
         </div>
 
-        {/* No manual load more; background refresh replaces skeletons automatically */}
+        <Pagination
+          currentPage={currentPage - 1}
+          totalPages={totalPages}
+          onPageChange={(pageIdx) => goToPage(pageIdx + 1)}
+          hasMore={false}
+          onLoadMore={() => {}}
+          loading={false}
+        />
       </div>
     </div>
   );

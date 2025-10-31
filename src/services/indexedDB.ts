@@ -1,14 +1,22 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { Cryptocurrency } from './api';
+import type { Cryptocurrency } from '@/services/api';
+
+type StoredCrypto = Cryptocurrency & { timestamp?: number };
 
 const DB_NAME = 'CryptoDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'cryptocurrencies';
 const META_STORE = 'meta';
 
 type SnapshotRecord = {
   key: 'snapshot-top10';
   items: Cryptocurrency[];
+  timestamp: number;
+};
+
+type MetaTotalCount = {
+  key: 'total-count';
+  value: number;
   timestamp: number;
 };
 
@@ -28,6 +36,9 @@ export const initDB = async () => {
             db.createObjectStore(META_STORE, { keyPath: 'key' });
           }
         }
+        if (oldVersion < 3) {
+          // Nothing structural beyond ensuring META_STORE exists above
+        }
       },
     });
   }
@@ -39,21 +50,29 @@ export const saveCryptoData = async (cryptos: Cryptocurrency[]) => {
   const tx = db.transaction(STORE_NAME, 'readwrite');
   const store = tx.objectStore(STORE_NAME);
 
-  // Clear existing data
-  await store.clear();
-
-  // Add timestamp to each cryptocurrency record
-  const dataWithTimestamp = cryptos.map((crypto) => ({
-    ...crypto,
-    timestamp: Date.now(),
-  }));
-
-  // Add all cryptocurrency records
-  for (const crypto of dataWithTimestamp) {
-    await store.add(crypto);
+  // Upsert records with a fresh timestamp, do not clear existing to support paging cache
+  const now = Date.now();
+  for (const crypto of cryptos) {
+    await store.put({ ...(crypto as StoredCrypto), timestamp: now } as StoredCrypto);
   }
 
   await tx.done;
+};
+
+export const saveCryptoPage = async (cryptos: Cryptocurrency[], totalCount?: number) => {
+  await saveCryptoData(cryptos);
+  if (typeof totalCount === 'number' && !Number.isNaN(totalCount)) {
+    const db = await initDB();
+    const tx = db.transaction(META_STORE, 'readwrite');
+    const store = tx.objectStore(META_STORE);
+    const record: MetaTotalCount = {
+      key: 'total-count',
+      value: totalCount,
+      timestamp: Date.now(),
+    };
+    await store.put(record);
+    await tx.done;
+  }
 };
 
 export const getCryptoData = async (): Promise<Cryptocurrency[]> => {
@@ -64,7 +83,7 @@ export const getCryptoData = async (): Promise<Cryptocurrency[]> => {
   // Get all records and sort by rank
   const allRecords = await store.getAll();
   return allRecords
-    .sort((a, b) => a.cmcRank - b.cmcRank)
+    .sort((a, b) => (a as StoredCrypto).cmcRank - (b as StoredCrypto).cmcRank)
     .map((item) => item as unknown as Cryptocurrency);
 };
 
@@ -138,4 +157,12 @@ export const getTopSnapshot = async (): Promise<{
   const record = (await store.get('snapshot-top10')) as SnapshotRecord | undefined;
   if (!record) return null;
   return { items: record.items, timestamp: record.timestamp };
+};
+
+export const getCachedTotalCount = async (): Promise<number | null> => {
+  const db = await initDB();
+  const tx = db.transaction(META_STORE, 'readonly');
+  const store = tx.objectStore(META_STORE);
+  const record = (await store.get('total-count')) as MetaTotalCount | undefined;
+  return record?.value ?? null;
 };

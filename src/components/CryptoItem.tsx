@@ -1,5 +1,4 @@
 import React from 'react';
-import Image from 'next/image';
 import { Cryptocurrency } from '@/services/api';
 import { formatCurrency, formatPercent, formatNumber } from '@/utils/formatters';
 
@@ -10,7 +9,6 @@ interface CryptoItemProps {
 const CryptoItem: React.FC<CryptoItemProps> = ({ crypto }) => {
   // Extract USD quote data from the quotes array
   const usdQuote = crypto.quotes.find((quote) => quote.name === 'USD');
-  const btcQuote = crypto.quotes.find((quote) => quote.name === 'BTC');
 
   const price = usdQuote?.price || 0;
   const change24h = usdQuote?.percentChange24h;
@@ -18,8 +16,7 @@ const CryptoItem: React.FC<CryptoItemProps> = ({ crypto }) => {
   const volume24h = usdQuote?.volume24h;
   const circulatingSupply = crypto.circulatingSupply;
 
-  // Create a URL for the cryptocurrency logo using a placeholder service
-  const logoUrl = `https://cryptologos.cc/logos/${crypto.slug}-${crypto.id}.png`;
+  // Logo handling removed for now to avoid unused vars
 
   return (
     <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">

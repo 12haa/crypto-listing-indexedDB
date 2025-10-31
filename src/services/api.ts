@@ -1,6 +1,16 @@
 import axios from 'axios';
 
-// Define TypeScript interfaces for our API responses
+export interface AuditInfo {
+  coinId: string;
+  auditor: string;
+  auditStatus: number;
+  auditTime?: string;
+  reportUrl: string;
+  score?: string;
+  contractAddress?: string;
+  contractPlatform?: string;
+}
+
 export interface Quote {
   name: string;
   price: number;
@@ -25,7 +35,7 @@ export interface Quote {
   percentChange1y: number;
 }
 
-export interface Cryptocurrency {
+export interface CryptoCurrency {
   id: number;
   name: string;
   symbol: string;
@@ -45,48 +55,50 @@ export interface Cryptocurrency {
   dateAdded: string;
   quotes: Quote[];
   isAudited: boolean;
-  auditInfoList: any[]; // Define more specific type if needed
+  auditInfoList: AuditInfo[];
   badges: number[];
 }
 
-export interface ApiResponse {
+// Backward-compatible alias used across components
+export type Cryptocurrency = CryptoCurrency;
+
+export interface CryptoCurrencyListResponse {
   data: {
-    cryptoCurrencyList: Cryptocurrency[];
-    totalCount: number;
+    cryptoCurrencyList: CryptoCurrency[];
+    totalCount: string;
+  };
+  status: {
+    timestamp: string;
+    error_code: string;
+    error_message: string;
+    elapsed: string;
+    credit_count: number;
   };
 }
 
-const API_BASE_URL =
-  'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit=100&sortBy=rank&sortType=desc&convert=USD,BTC,ETH&cryptoType=all&tagType=all&audited=false&aux=ath,atl,high24h,low24h,num_market_pairs,cmc_rank,date_added,max_supply,circulating_supply,total_supply,volume_7d,volume_30d,self_reported_circulating_supply,self_reported_market_cap';
+// Exact base URL; pagination is passed via params
+const API_BASE_URL = 'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing';
 
-export const fetchCryptocurrencies = async (
-  start = 1,
-  limit = 100,
-  sortBy = 'cmc_rank',
-  sortType = 'desc'
-): Promise<ApiResponse> => {
-  try {
-    const response = await axios.get<ApiResponse>(API_BASE_URL, {
-      params: {
-        // start,
-        // limit,
-        // sortBy,
-        // sortType,
-        // convert: 'USD,BTC,ETH',
-        // cryptoType: 'all',
-        // tagType: 'all',
-        // audited: false,
-        // aux: 'ath,atl,high24h,low24h,num_market_pairs,cmc_rank,date_added,max_supply,circulating_supply,total_supply,volume_7d,volume_30d,self_reported_circulating_supply,self_reported_market_cap',
-      },
-      headers: {
-        Accept: 'application/json',
-        // Note: This API might require an API key for production use
-        // You might need to add an API key in headers if this endpoint requires authentication
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching cryptocurrency data:', error);
-    throw error;
-  }
+export const fetchCryptocurrenciesPage = async (
+  page: number,
+  pageSize: number,
+  sortBy: string = 'rank',
+  sortType: 'asc' | 'desc' = 'desc'
+): Promise<CryptoCurrencyListResponse> => {
+  const start = (page - 1) * pageSize + 1;
+  const response = await axios.get<CryptoCurrencyListResponse>(API_BASE_URL, {
+    params: {
+      start,
+      limit: pageSize,
+      sortBy,
+      sortType,
+      convert: 'USD,BTC,ETH',
+      cryptoType: 'all',
+      tagType: 'all',
+      audited: false,
+      aux: 'ath,atl,high24h,low24h,num_market_pairs,cmc_rank,date_added,max_supply,circulating_supply,total_supply,volume_7d,volume_30d,self_reported_circulating_supply,self_reported_market_cap',
+    },
+    headers: { Accept: 'application/json' },
+  });
+  return response.data;
 };
