@@ -9,10 +9,12 @@ import { Cryptocurrency } from '@/services/api';
 const CryptoListPage = () => {
   const {
     filteredCryptos,
+    cryptocurrencies,
     error,
     totalItems,
     currentPage,
     pageSize,
+    displayedCount,
     setSearchTerm,
     fetchInitialData,
     startAutoRefresh,
@@ -44,7 +46,7 @@ const CryptoListPage = () => {
     };
   }, [localSearchTerm, setSearchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(totalItems / (pageSize || 1)));
+  const totalPages = Math.max(1, Math.ceil(totalItems / Math.max(displayedCount || 1, 1)));
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -187,7 +189,7 @@ const CryptoListPage = () => {
           currentPage={currentPage - 1}
           totalPages={totalPages}
           onPageChange={(pageIdx) => goToPage(pageIdx + 1)}
-          hasMore={filteredCryptos.length < Math.min(pageSize, totalItems)}
+          hasMore={displayedCount < Math.min(200, cryptocurrencies.length)}
           onLoadMore={showMore}
           loading={loading}
         />

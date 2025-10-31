@@ -13,7 +13,7 @@ interface CryptoState {
   loading: boolean;
   error: string | null;
   currentPage: number;
-  pageSize: number;
+  pageSize: number; // server fetch size per page (we will fetch up to 200)
   totalItems: number;
   displayedCount: number;
   searchTerm: string;
@@ -36,7 +36,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   loading: false,
   error: null,
   currentPage: 1,
-  pageSize: 50,
+  pageSize: 200,
   totalItems: 0,
   displayedCount: 10,
   searchTerm: '',
@@ -91,7 +91,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     try {
       const { pageSize } = get();
       const cached = await getCryptoDataByPage(page - 1, pageSize);
-      if (cached.length === pageSize) {
+      if (cached.length > 0) {
         set({
           cryptocurrencies: cached as Cryptocurrency[],
           filteredCryptos: (cached as Cryptocurrency[]).slice(0, 10),
@@ -129,7 +129,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   showMore: async () => {
     const { cryptocurrencies, displayedCount } = get();
-    const newCount = Math.min(displayedCount + 50, cryptocurrencies.length);
+    const newCount = Math.min(displayedCount + 50, 200, cryptocurrencies.length);
     set({
       filteredCryptos: cryptocurrencies.slice(0, newCount),
       displayedCount: newCount,
