@@ -29,7 +29,7 @@ const CryptoListPage = () => {
 
   useEffect(() => {
     fetchInitialData();
-    startAutoRefresh(60000); // Refresh every minute
+    startAutoRefresh(30000); // Refresh every minute
 
     return () => {
       stopAutoRefresh();

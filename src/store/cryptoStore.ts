@@ -61,9 +61,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           lastUpdated: cachedUpdatedAt ?? null,
           displayedCount: 10,
         });
-        const STALE_MS = 30;
-        const isStale = !cachedUpdatedAt || Date.now() - cachedUpdatedAt > STALE_MS;
-        if (isStale) void get().refreshData();
         return;
       }
       const apiResponse = await fetchCryptocurrenciesPage(1, pageSize);
@@ -134,6 +131,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       filteredCryptos: cryptocurrencies.slice(0, newCount),
       displayedCount: newCount,
     });
+    // Ensure IndexedDB also has these expanded rows persisted
+    await saveCryptoPage(cryptocurrencies.slice(0, newCount));
   },
 
   setSearchTerm: (term: string) => {
