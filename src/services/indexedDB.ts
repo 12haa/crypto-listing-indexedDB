@@ -36,9 +36,6 @@ export const initDB = async () => {
             db.createObjectStore(META_STORE, { keyPath: 'key' });
           }
         }
-        if (oldVersion < 3) {
-          // Nothing structural beyond ensuring META_STORE exists above
-        }
       },
     });
   }
@@ -84,7 +81,7 @@ export const getCryptoData = async (): Promise<Cryptocurrency[]> => {
   const allRecords = await store.getAll();
   return allRecords
     .sort((a, b) => (a as StoredCrypto).cmcRank - (b as StoredCrypto).cmcRank)
-    .map((item) => item as unknown as Cryptocurrency);
+    .map((item) => item as Cryptocurrency);
 };
 
 export const getCryptoDataByPage = async (

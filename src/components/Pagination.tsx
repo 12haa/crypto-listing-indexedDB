@@ -28,7 +28,12 @@ const Pagination: React.FC<PaginationProps> = ({
   }
 
   const renderPageButton = (page: number) => (
-    <PaginationButton key={page} active={current === page} onClick={() => onPageChange(page - 1)}>
+    <PaginationButton 
+      key={page} 
+      active={current === page} 
+      onClick={() => onPageChange(page - 1)}
+      disabled={loading}
+    >
       {page}
     </PaginationButton>
   );
@@ -36,26 +41,18 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className="flex flex-col items-center py-6">
       <div className="flex items-center space-x-2 mb-4">
-        {loading ? (
-          <>
-            <PaginationButton skeleton />
-            <PaginationButton skeleton />
-            <PaginationButton skeleton />
-            <PaginationButton skeleton />
-          </>
-        ) : (
-          <>
-            <PaginationButton onClick={() => onPageChange(0)} disabled={current === 1}>
-              First
-            </PaginationButton>
-            <PaginationButton
-              onClick={() => onPageChange(Math.max(0, current - 2))}
-              disabled={current === 1}
-            >
-              Prev
-            </PaginationButton>
-          </>
-        )}
+        <PaginationButton 
+          onClick={() => onPageChange(0)} 
+          disabled={current === 1 || loading}
+        >
+          First
+        </PaginationButton>
+        <PaginationButton
+          onClick={() => onPageChange(Math.max(0, current - 2))}
+          disabled={current === 1 || loading}
+        >
+          Prev
+        </PaginationButton>
 
         {start > 1 && (
           <>
@@ -75,27 +72,18 @@ const Pagination: React.FC<PaginationProps> = ({
           </>
         )}
 
-        {loading ? (
-          <>
-            <PaginationButton skeleton />
-            <PaginationButton skeleton />
-          </>
-        ) : (
-          <>
-            <PaginationButton
-              onClick={() => onPageChange(Math.min(totalPages - 1, current))}
-              disabled={current === totalPages}
-            >
-              Next
-            </PaginationButton>
-            <PaginationButton
-              onClick={() => onPageChange(totalPages - 1)}
-              disabled={current === totalPages}
-            >
-              Last
-            </PaginationButton>
-          </>
-        )}
+        <PaginationButton
+          onClick={() => onPageChange(Math.min(totalPages - 1, current))}
+          disabled={current === totalPages || loading}
+        >
+          Next
+        </PaginationButton>
+        <PaginationButton
+          onClick={() => onPageChange(totalPages - 1)}
+          disabled={current === totalPages || loading}
+        >
+          Last
+        </PaginationButton>
       </div>
 
       {hasMore && (
