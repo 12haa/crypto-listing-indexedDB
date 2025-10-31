@@ -176,30 +176,52 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   refreshData: async () => {
     try {
-      const { currentPage, pageSize, displayedCount } = get();
+      const { currentPage, pageSize, displayedCount, searchTerm } = get();
       const desiredStartIndex = (currentPage - 1) * Math.max(displayedCount, 1);
       const baseIndex = Math.floor(desiredStartIndex / pageSize);
-
-      const apiResponse = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
-      const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
-      const totalCount = parseInt(apiResponse.data.totalCount, 10);
-      await saveCryptoPage(freshData, totalCount);
       const offset = desiredStartIndex % pageSize;
-      let combined = freshData;
-      const needed = offset + displayedCount;
-      if (needed > pageSize) {
-        const resp2 = await fetchCryptocurrenciesPage(baseIndex + 2, pageSize);
-        const nextData = resp2.data.cryptoCurrencyList as Cryptocurrency[];
-        await saveCryptoPage(nextData, parseInt(resp2.data.totalCount, 10));
-        combined = [...combined, ...nextData];
+
+      // Always fetch and update the base page with fresh data
+      const apiResponse = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
+      const freshBaseData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
+      const totalCount = parseInt(apiResponse.data.totalCount, 10);
+      await saveCryptoPage(freshBaseData, totalCount);
+
+      // Check if current display window requires data from the next page
+      let combined = [...freshBaseData];
+      if (offset + displayedCount > pageSize) {
+        // Fetch next page if needed
+        const nextPageIndex = baseIndex + 2;
+        const nextApiResponse = await fetchCryptocurrenciesPage(nextPageIndex, pageSize);
+        const freshNextData = nextApiResponse.data.cryptoCurrencyList as Cryptocurrency[];
+        await saveCryptoPage(freshNextData, parseInt(nextApiResponse.data.totalCount, 10));
+        combined = [...combined, ...freshNextData];
       }
-      const window = combined.slice(offset, offset + displayedCount);
+
+      // Get the current window of data from the combined fresh data
+      const currentWindow = combined.slice(offset, offset + displayedCount);
+
+      // Apply search filter if there's a search term
+      let filteredWindow = currentWindow;
+      if (searchTerm) {
+        filteredWindow = currentWindow.filter(
+          (crypto) =>
+            crypto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            crypto.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
       set({
-        cryptocurrencies: freshData,
-        filteredCryptos: window,
+        cryptocurrencies: freshBaseData, // Update with the fresh base page data
+        filteredCryptos: filteredWindow,
         totalItems: totalCount,
         lastUpdated: Date.now(),
       });
+
+      // If the current page is not page 1, ensure the currentPage is preserved in state
+      if (currentPage !== 1) {
+        set({ currentPage });
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to refresh cryptocurrency data',
