@@ -2,19 +2,31 @@ import { openDB, IDBPDatabase } from 'idb';
 import { Cryptocurrency } from './api';
 
 const DB_NAME = 'CryptoDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'cryptocurrencies';
+const META_STORE = 'meta';
+
+type SnapshotRecord = {
+  key: 'snapshot-top10';
+  items: Cryptocurrency[];
+  timestamp: number;
+};
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 export const initDB = async () => {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
           store.createIndex('rank', 'cmcRank', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+        if (oldVersion < 2) {
+          if (!db.objectStoreNames.contains(META_STORE)) {
+            db.createObjectStore(META_STORE, { keyPath: 'key' });
+          }
         }
       },
     });
@@ -101,4 +113,29 @@ export const getLastUpdated = async (): Promise<number | null> => {
     }
   }
   return maxTs || null;
+};
+
+export const saveTopSnapshot = async (items: Cryptocurrency[]) => {
+  const db = await initDB();
+  const tx = db.transaction(META_STORE, 'readwrite');
+  const store = tx.objectStore(META_STORE);
+  const record: SnapshotRecord = {
+    key: 'snapshot-top10',
+    items,
+    timestamp: Date.now(),
+  };
+  await store.put(record);
+  await tx.done;
+};
+
+export const getTopSnapshot = async (): Promise<{
+  items: Cryptocurrency[];
+  timestamp: number;
+} | null> => {
+  const db = await initDB();
+  const tx = db.transaction(META_STORE, 'readonly');
+  const store = tx.objectStore(META_STORE);
+  const record = (await store.get('snapshot-top10')) as SnapshotRecord | undefined;
+  if (!record) return null;
+  return { items: record.items, timestamp: record.timestamp };
 };

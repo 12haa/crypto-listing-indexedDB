@@ -44,7 +44,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       const [cachedData, cachedUpdatedAt] = await Promise.all([getCryptoData(), getLastUpdated()]);
 
       if (cachedData.length > 0) {
-        // Show cached snapshot instantly and stop here (no API on initial load)
+        // Show cached snapshot instantly: top 10 now, skeletons for the rest
         const initialCryptos = cachedData.slice(0, 10);
         set({
           cryptocurrencies: cachedData,
@@ -53,6 +53,15 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           loading: false,
           lastUpdated: cachedUpdatedAt ?? null,
         });
+
+        // Background refresh if cache is stale (>5 minutes) or always on first paint
+        const STALE_MS = 300;
+        const isStale = !cachedUpdatedAt || Date.now() - cachedUpdatedAt > STALE_MS;
+        // Fire and forget to avoid blocking initial render
+        if (isStale) {
+          // do not await to keep UI responsive
+          void get().refreshData();
+        }
         return;
       }
 
@@ -61,7 +70,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       const freshData = apiResponse.data.cryptoCurrencyList;
       await saveCryptoData(freshData);
 
-      const initialCryptos = freshData.slice(0, 10);
+      // First-ever load should render full table immediately
+      const initialCryptos = freshData;
       set({
         cryptocurrencies: freshData,
         filteredCryptos: initialCryptos,
@@ -126,10 +136,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       // Save fresh data to IndexedDB
       await saveCryptoData(freshData);
 
-      // Update state with fresh data
-      // Keep the same number of items currently displayed
-      const currentDisplayCount = get().filteredCryptos.length;
-      const currentView = freshData.slice(0, currentDisplayCount);
+      // Update state with fresh data: replace skeletons by filling entire table
+      const currentView = freshData;
 
       set({
         cryptocurrencies: freshData,

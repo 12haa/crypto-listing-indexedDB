@@ -8,15 +8,13 @@ import CryptoItemSkeleton from '@/components/CryptoItemSkeleton';
 
 const CryptoListPage = () => {
   const {
-    cryptocurrencies,
     filteredCryptos,
-    loading,
     error,
+    totalItems,
     // currentPage,
     // searchTerm,
     setSearchTerm,
     fetchInitialData,
-    loadMore,
     startAutoRefresh,
     stopAutoRefresh,
     lastUpdated,
@@ -43,8 +41,8 @@ const CryptoListPage = () => {
     };
   }, [localSearchTerm, setSearchTerm]);
 
-  // Calculate if there's more data to load
-  const hasMore = cryptocurrencies.length > filteredCryptos.length;
+  // Remaining items not yet rendered (skeletons)
+  const remainingCount = Math.max(0, totalItems - filteredCryptos.length);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -87,7 +85,7 @@ const CryptoListPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="text-sm font-medium text-gray-600">Total Cryptocurrencies</p>
-            <p className="text-2xl font-bold text-gray-900">{cryptocurrencies.length}</p>
+            <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="text-sm font-medium text-gray-600">Showing</p>
@@ -176,26 +174,18 @@ const CryptoListPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading && filteredCryptos.length === 0
-                ? // Show skeleton loaders when loading and no data yet
-                  Array.from({ length: 10 }).map((_, index) => <CryptoItemSkeleton key={index} />)
-                : filteredCryptos.map((crypto) => <CryptoItem key={crypto.id} crypto={crypto} />)}
+              {filteredCryptos.map((crypto) => (
+                <CryptoItem key={crypto.id} crypto={crypto} />
+              ))}
+              {remainingCount > 0 &&
+                Array.from({ length: remainingCount }).map((_, index) => (
+                  <CryptoItemSkeleton key={`skeleton-${index}`} />
+                ))}
             </tbody>
           </table>
         </div>
 
-        {/* Show More Button - For loading 50 more items */}
-        {hasMore && !loading && (
-          <div className="mt-6 text-center">
-            <button
-              onClick={loadMore}
-              disabled={loading}
-              className="px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Loading More...' : 'Show More (Load 50 More)'}
-            </button>
-          </div>
-        )}
+        {/* No manual load more; background refresh replaces skeletons automatically */}
       </div>
     </div>
   );
