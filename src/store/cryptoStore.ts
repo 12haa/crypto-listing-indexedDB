@@ -33,7 +33,7 @@ interface CryptoState {
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   cryptocurrencies: [],
   filteredCryptos: [],
-  loading: false,
+  loading: true,
   error: null,
   currentPage: 1,
   pageSize: 200,
@@ -147,7 +147,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   },
 
   refreshData: async () => {
-    set({ loading: true });
     try {
       const { currentPage, pageSize, displayedCount } = get();
       const apiResponse = await fetchCryptocurrenciesPage(currentPage, pageSize);
@@ -158,13 +157,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         cryptocurrencies: freshData,
         filteredCryptos: freshData.slice(0, Math.min(displayedCount, freshData.length)),
         totalItems: totalCount,
-        loading: false,
         lastUpdated: Date.now(),
       });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to refresh cryptocurrency data',
-        loading: false,
       });
     }
   },

@@ -51,6 +51,7 @@ const CryptoListPage = () => {
   }, [localSearchTerm, setSearchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / Math.max(displayedCount || 1, 1)));
+  const isInitialLoading = loading && filteredCryptos.length === 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -62,13 +63,17 @@ const CryptoListPage = () => {
           </p>
         </div>
 
-        <SearchBar value={localSearchTerm} onChange={setLocalSearchTerm} loading={loading} />
+        <SearchBar
+          value={localSearchTerm}
+          onChange={setLocalSearchTerm}
+          loading={isInitialLoading}
+        />
 
         <StatsBar
           totalItems={totalItems}
           showing={filteredCryptos.length}
           lastUpdated={lastUpdated}
-          loading={loading}
+          loading={isInitialLoading}
         />
 
         {/* Error Message */}
@@ -101,7 +106,7 @@ const CryptoListPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <TableHeader />
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading
+              {isInitialLoading
                 ? Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
                 : filteredCryptos.map((crypto: Cryptocurrency) => (
                     <CryptoItem key={crypto.id} crypto={crypto} />
