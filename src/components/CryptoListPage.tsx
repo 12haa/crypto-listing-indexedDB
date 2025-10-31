@@ -8,14 +8,17 @@ import Pagination from '@/components/Pagination';
 import SearchBar from '@/components/SearchBar';
 import StatsBar from '@/components/StatsBar';
 import TableHeader from '@/components/TableHeader';
+import StickyTop10 from '@/components/StickyTop10';
 import { Cryptocurrency } from '@/services/api';
 
 const CryptoListPage = () => {
   const {
     filteredCryptos,
+    initialTop10,
     cryptocurrencies,
     error,
     totalItems,
+    searchTerm,
     currentPage,
     pageSize,
     displayedCount,
@@ -27,6 +30,8 @@ const CryptoListPage = () => {
     goToPage,
     showMore,
     loading,
+    initialLoading,
+    hasFreshData,
   } = useCryptoStore();
 
   const [localSearchTerm, setLocalSearchTerm] = useState('');
@@ -51,7 +56,6 @@ const CryptoListPage = () => {
   }, [localSearchTerm, setSearchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / Math.max(displayedCount || 1, 1)));
-  const isInitialLoading = loading && filteredCryptos.length === 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -63,17 +67,13 @@ const CryptoListPage = () => {
           </p>
         </div>
 
-        <SearchBar
-          value={localSearchTerm}
-          onChange={setLocalSearchTerm}
-          loading={isInitialLoading}
-        />
+        <SearchBar value={localSearchTerm} onChange={setLocalSearchTerm} loading={initialLoading} />
 
         <StatsBar
           totalItems={totalItems}
           showing={filteredCryptos.length}
           lastUpdated={lastUpdated}
-          loading={isInitialLoading}
+          loading={initialLoading}
         />
 
         {/* Error Message */}
@@ -106,11 +106,31 @@ const CryptoListPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <TableHeader />
             <tbody className="bg-white divide-y divide-gray-200">
-              {isInitialLoading
-                ? Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
-                : filteredCryptos.map((crypto: Cryptocurrency) => (
+              {searchTerm ? ( // If there's a search term, show search results normally
+                initialLoading ? (
+                  Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
+                ) : (
+                  filteredCryptos.map((crypto: Cryptocurrency) => (
                     <CryptoItem key={crypto.id} crypto={crypto} />
-                  ))}
+                  ))
+                )
+              ) : (
+                // If no search term, use sticky top 10 for first 10 items
+                <>
+                  <StickyTop10
+                    cachedTop10={initialTop10}
+                    isLoading={initialLoading}
+                    hasFreshData={hasFreshData}
+                    freshTop10={filteredCryptos.slice(0, 10)}
+                  />
+                  {filteredCryptos.length > 10 &&
+                    filteredCryptos
+                      .slice(10)
+                      .map((crypto: Cryptocurrency) => (
+                        <CryptoItem key={crypto.id} crypto={crypto} />
+                      ))}
+                </>
+              )}
             </tbody>
           </table>
         </div>
