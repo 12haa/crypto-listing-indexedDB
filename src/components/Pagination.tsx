@@ -1,4 +1,5 @@
 import React from 'react';
+import PaginationButton from '@/components/PaginationButton';
 
 interface PaginationProps {
   currentPage: number;
@@ -27,34 +28,34 @@ const Pagination: React.FC<PaginationProps> = ({
   }
 
   const renderPageButton = (page: number) => (
-    <button
-      key={page}
-      onClick={() => onPageChange(page - 1)}
-      className={`px-3 py-1 rounded-md ${
-        current === page ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-      }`}
-    >
+    <PaginationButton key={page} active={current === page} onClick={() => onPageChange(page - 1)}>
       {page}
-    </button>
+    </PaginationButton>
   );
 
   return (
     <div className="flex flex-col items-center py-6">
       <div className="flex items-center space-x-2 mb-4">
-        <button
-          onClick={() => onPageChange(0)}
-          disabled={current === 1}
-          className="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-        >
-          First
-        </button>
-        <button
-          onClick={() => onPageChange(Math.max(0, current - 2))}
-          disabled={current === 1}
-          className="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-        >
-          Prev
-        </button>
+        {loading ? (
+          <>
+            <PaginationButton skeleton />
+            <PaginationButton skeleton />
+            <PaginationButton skeleton />
+            <PaginationButton skeleton />
+          </>
+        ) : (
+          <>
+            <PaginationButton onClick={() => onPageChange(0)} disabled={current === 1}>
+              First
+            </PaginationButton>
+            <PaginationButton
+              onClick={() => onPageChange(Math.max(0, current - 2))}
+              disabled={current === 1}
+            >
+              Prev
+            </PaginationButton>
+          </>
+        )}
 
         {start > 1 && (
           <>
@@ -74,20 +75,27 @@ const Pagination: React.FC<PaginationProps> = ({
           </>
         )}
 
-        <button
-          onClick={() => onPageChange(Math.min(totalPages - 1, current))}
-          disabled={current === totalPages}
-          className="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-        >
-          Next
-        </button>
-        <button
-          onClick={() => onPageChange(totalPages - 1)}
-          disabled={current === totalPages}
-          className="px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-        >
-          Last
-        </button>
+        {loading ? (
+          <>
+            <PaginationButton skeleton />
+            <PaginationButton skeleton />
+          </>
+        ) : (
+          <>
+            <PaginationButton
+              onClick={() => onPageChange(Math.min(totalPages - 1, current))}
+              disabled={current === totalPages}
+            >
+              Next
+            </PaginationButton>
+            <PaginationButton
+              onClick={() => onPageChange(totalPages - 1)}
+              disabled={current === totalPages}
+            >
+              Last
+            </PaginationButton>
+          </>
+        )}
       </div>
 
       {hasMore && (

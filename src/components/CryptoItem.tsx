@@ -1,10 +1,34 @@
 import React from 'react';
 import { Cryptocurrency } from '@/services/api';
-import { formatCurrency, formatPercent, formatNumber } from '@/utils/formatters';
+import { formatCurrency, formatNumber } from '@/utils/formatters';
 
 interface CryptoItemProps {
   crypto: Cryptocurrency;
 }
+
+const NameCell: React.FC<{ name: string; symbol: string }> = ({ name, symbol }) => (
+  <div>
+    <div className="font-medium text-gray-900">{name}</div>
+    <div className="text-sm text-gray-500">{symbol}</div>
+  </div>
+);
+
+const ChangeCell: React.FC<{ change24h?: number }> = ({ change24h }) => (
+  <td
+    className={`py-4 px-4 text-right ${
+      change24h !== undefined && change24h >= 0 ? 'text-green-500' : 'text-red-500'
+    }`}
+  >
+    {change24h !== undefined ? Math.abs(change24h).toFixed(2) + '%' : 'N/A'}
+    <span
+      className={`ml-1 ${
+        change24h !== undefined && change24h >= 0 ? 'text-green-500' : 'text-red-500'
+      }`}
+    >
+      {change24h !== undefined && change24h >= 0 ? '↑' : '↓'}
+    </span>
+  </td>
+);
 
 const CryptoItem: React.FC<CryptoItemProps> = ({ crypto }) => {
   // Extract USD quote data from the quotes array
@@ -25,42 +49,11 @@ const CryptoItem: React.FC<CryptoItemProps> = ({ crypto }) => {
       </td>
       <td className="py-4 px-4">
         <div className="flex items-center">
-          {/* <div className="relative w-8 h-8 mr-3">
-            <Image
-              src={logoUrl}
-              alt={crypto.name}
-              width={32}
-              height={32}
-              className="object-contain"
-              onError={(e) => {
-                // Fallback to a generic crypto icon if the logo fails to load
-                (e.target as HTMLImageElement).onerror = null;
-                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${crypto.name}&background=random`;
-              }}
-              loading="lazy"
-            />
-          </div> */}
-          <div>
-            <div className="font-medium text-gray-900">{crypto.name}</div>
-            <div className="text-sm text-gray-500">{crypto.symbol}</div>
-          </div>
+          <NameCell name={crypto.name} symbol={crypto.symbol} />
         </div>
       </td>
       <td className="py-4 px-4 text-right font-medium">{formatCurrency(price)}</td>
-      <td
-        className={`py-4 px-4 text-right ${
-          change24h !== undefined && change24h >= 0 ? 'text-green-500' : 'text-red-500'
-        }`}
-      >
-        {change24h !== undefined ? formatPercent(Math.abs(change24h)) : 'N/A'}
-        <span
-          className={`ml-1 ${
-            change24h !== undefined && change24h >= 0 ? 'text-green-500' : 'text-red-500'
-          }`}
-        >
-          {change24h !== undefined && change24h >= 0 ? '↑' : '↓'}
-        </span>
-      </td>
+      <ChangeCell change24h={change24h} />
       <td className="py-4 px-4 text-right">{marketCap ? formatCurrency(marketCap) : 'N/A'}</td>
       <td className="py-4 px-4 text-right">{volume24h ? formatCurrency(volume24h) : 'N/A'}</td>
       <td className="py-4 px-4 text-right">

@@ -3,7 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useCryptoStore } from '../store/cryptoStore';
 import CryptoItem from '@/components/CryptoItem';
+import CryptoItemSkeleton from '@/components/CryptoItemSkeleton';
 import Pagination from '@/components/Pagination';
+import SearchBar from '@/components/SearchBar';
+import StatsBar from '@/components/StatsBar';
+import TableHeader from '@/components/TableHeader';
 import { Cryptocurrency } from '@/services/api';
 
 const CryptoListPage = () => {
@@ -58,50 +62,14 @@ const CryptoListPage = () => {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search cryptocurrencies..."
-              value={localSearchTerm}
-              onChange={(e) => setLocalSearchTerm(e.target.value)}
-              className="w-full p-4 pr-12 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+        <SearchBar value={localSearchTerm} onChange={setLocalSearchTerm} loading={loading} />
 
-        {/* Stats Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600">Total Cryptocurrencies</p>
-            <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600">Showing</p>
-            <p className="text-2xl font-bold text-gray-900">{filteredCryptos.length}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-sm font-medium text-gray-600">Last Updated</p>
-            <p className="text-2xl font-bold text-gray-900">
-              {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '—'}
-            </p>
-          </div>
-        </div>
+        <StatsBar
+          totalItems={totalItems}
+          showing={filteredCryptos.length}
+          lastUpdated={lastUpdated}
+          loading={loading}
+        />
 
         {/* Error Message */}
         {error && (
@@ -131,56 +99,13 @@ const CryptoListPage = () => {
         {/* Crypto Table */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  #
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Name
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Price
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  24h %
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Market Cap
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Volume (24h)
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Circulating Supply
-                </th>
-              </tr>
-            </thead>
+            <TableHeader />
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCryptos.map((crypto: Cryptocurrency) => (
-                <CryptoItem key={crypto.id} crypto={crypto} />
-              ))}
+              {loading
+                ? Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
+                : filteredCryptos.map((crypto: Cryptocurrency) => (
+                    <CryptoItem key={crypto.id} crypto={crypto} />
+                  ))}
             </tbody>
           </table>
         </div>
