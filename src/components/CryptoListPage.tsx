@@ -19,6 +19,8 @@ const CryptoListPage = () => {
     stopAutoRefresh,
     lastUpdated,
     goToPage,
+    showMore,
+    loading,
   } = useCryptoStore();
 
   const [localSearchTerm, setLocalSearchTerm] = useState('');
@@ -185,9 +187,9 @@ const CryptoListPage = () => {
           currentPage={currentPage - 1}
           totalPages={totalPages}
           onPageChange={(pageIdx) => goToPage(pageIdx + 1)}
-          hasMore={false}
-          onLoadMore={() => {}}
-          loading={false}
+          hasMore={filteredCryptos.length < Math.min(pageSize, totalItems)}
+          onLoadMore={showMore}
+          loading={loading}
         />
       </div>
     </div>

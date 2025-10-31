@@ -15,6 +15,7 @@ interface CryptoState {
   currentPage: number;
   pageSize: number;
   totalItems: number;
+  displayedCount: number;
   searchTerm: string;
   refreshInterval: number | null;
   lastUpdated: number | null;
@@ -22,6 +23,7 @@ interface CryptoState {
   fetchInitialData: () => Promise<void>;
   goToPage: (page: number) => Promise<void>;
   setPageSize: (size: number) => Promise<void>;
+  showMore: () => Promise<void>;
   setSearchTerm: (term: string) => void;
   refreshData: () => Promise<void>;
   startAutoRefresh: (intervalMs: number) => void;
@@ -36,6 +38,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   currentPage: 1,
   pageSize: 50,
   totalItems: 0,
+  displayedCount: 10,
   searchTerm: '',
   refreshInterval: null,
   lastUpdated: null,
@@ -52,12 +55,13 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (cachedPage.length > 0) {
         set({
           cryptocurrencies: cachedPage as Cryptocurrency[],
-          filteredCryptos: cachedPage as Cryptocurrency[],
+          filteredCryptos: (cachedPage as Cryptocurrency[]).slice(0, 10),
           totalItems: cachedTotal ?? cachedPage.length,
           loading: false,
           lastUpdated: cachedUpdatedAt ?? null,
+          displayedCount: 10,
         });
-        const STALE_MS = 30000;
+        const STALE_MS = 30;
         const isStale = !cachedUpdatedAt || Date.now() - cachedUpdatedAt > STALE_MS;
         if (isStale) void get().refreshData();
         return;
@@ -68,10 +72,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       await saveCryptoPage(freshData, totalCount);
       set({
         cryptocurrencies: freshData,
-        filteredCryptos: freshData,
+        filteredCryptos: freshData.slice(0, 10),
         totalItems: totalCount,
         loading: false,
         lastUpdated: Date.now(),
+        displayedCount: 10,
       });
     } catch (error) {
       set({
@@ -89,9 +94,10 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (cached.length === pageSize) {
         set({
           cryptocurrencies: cached as Cryptocurrency[],
-          filteredCryptos: cached as Cryptocurrency[],
+          filteredCryptos: (cached as Cryptocurrency[]).slice(0, 10),
           currentPage: page,
           loading: false,
+          displayedCount: 10,
         });
         return;
       }
@@ -101,11 +107,12 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       await saveCryptoPage(freshData, totalCount);
       set({
         cryptocurrencies: freshData,
-        filteredCryptos: freshData,
+        filteredCryptos: freshData.slice(0, 10),
         totalItems: totalCount,
         currentPage: page,
         loading: false,
         lastUpdated: Date.now(),
+        displayedCount: 10,
       });
     } catch (error) {
       set({
@@ -118,6 +125,15 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   setPageSize: async (size: number) => {
     set({ pageSize: size });
     await get().goToPage(1);
+  },
+
+  showMore: async () => {
+    const { cryptocurrencies, displayedCount } = get();
+    const newCount = Math.min(displayedCount + 50, cryptocurrencies.length);
+    set({
+      filteredCryptos: cryptocurrencies.slice(0, newCount),
+      displayedCount: newCount,
+    });
   },
 
   setSearchTerm: (term: string) => {
@@ -134,14 +150,14 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   refreshData: async () => {
     set({ loading: true });
     try {
-      const { currentPage, pageSize } = get();
+      const { currentPage, pageSize, displayedCount } = get();
       const apiResponse = await fetchCryptocurrenciesPage(currentPage, pageSize);
       const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
       const totalCount = parseInt(apiResponse.data.totalCount, 10);
       await saveCryptoPage(freshData, totalCount);
       set({
         cryptocurrencies: freshData,
-        filteredCryptos: freshData,
+        filteredCryptos: freshData.slice(0, Math.min(displayedCount, freshData.length)),
         totalItems: totalCount,
         loading: false,
         lastUpdated: Date.now(),
