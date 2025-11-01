@@ -6,7 +6,6 @@ import Pagination from '@/components/modules/Pagination';
 import SearchBar from '@/components/elements/SearchBar';
 import StatsBar from '@/components/modules/StatsBar';
 import TableHeader from '@/components/elements/TableHeader';
-import StickyTop10 from '@/components/modules/StickyTop10';
 import { useCryptoStore } from '@/store/cryptoStore';
 import { Cryptocurrency } from '@/app/types';
 
@@ -116,14 +115,22 @@ const CryptoListPage = () => {
                     ))
                   )
                 ) : currentPage === 1 ? (
-                  // If no search term and on page 1, use sticky top 10 for first 10 items
+                  // If no search term and on page 1, use sticky behavior for first 10 items
                   <>
-                    <StickyTop10
-                      cachedTop10={initialTop10}
-                      isLoading={initialLoading}
-                      hasFreshData={hasFreshData}
-                      freshTop10={filteredCryptos.slice(0, 10)}
-                    />
+                    {filteredCryptos.slice(0, 10).map((crypto: Cryptocurrency, index: number) => {
+                      const cachedCrypto = initialTop10[index];
+                      const keyPrefix = cachedCrypto && !hasFreshData ? 'cached' : 'fresh';
+                      return (
+                        <CryptoItem
+                          key={`${keyPrefix}-${crypto.id}`}
+                          crypto={crypto}
+                          isSticky={true}
+                          cachedCrypto={cachedCrypto}
+                          hasFreshData={hasFreshData}
+                          isLoading={initialLoading}
+                        />
+                      );
+                    })}
                     {filteredCryptos.length > 10 &&
                       filteredCryptos
                         .slice(10)
