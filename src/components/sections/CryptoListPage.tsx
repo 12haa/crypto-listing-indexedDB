@@ -19,7 +19,6 @@ const CryptoListPage = () => {
     totalItems,
     searchTerm,
     currentPage,
-    pageSize,
     displayedCount,
     setSearchTerm,
     fetchInitialData,
@@ -116,8 +115,8 @@ const CryptoListPage = () => {
                       <CryptoItem key={crypto.id} crypto={crypto} />
                     ))
                   )
-                ) : (
-                  // If no search term, use sticky top 10 for first 10 items
+                ) : currentPage === 1 ? (
+                  // If no search term and on page 1, use sticky top 10 for first 10 items
                   <>
                     <StickyTop10
                       cachedTop10={initialTop10}
@@ -132,6 +131,13 @@ const CryptoListPage = () => {
                           <CryptoItem key={crypto.id} crypto={crypto} />
                         ))}
                   </>
+                ) : // If no search term and not on page 1, show paginated results normally
+                initialLoading ? (
+                  Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
+                ) : (
+                  filteredCryptos.map((crypto: Cryptocurrency) => (
+                    <CryptoItem key={crypto.id} crypto={crypto} />
+                  ))
                 )}
               </tbody>
             </table>
