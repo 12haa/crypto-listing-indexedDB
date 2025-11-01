@@ -12,11 +12,10 @@ import {
 import { fetchCryptocurrenciesPage } from '@/hooks/queries/useFetchCryptocurrenciesPage';
 import { Cryptocurrency, CryptoState } from '@/types';
 
-// Create a QueryClient instance for use in the store
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000, // 1 minute
+      staleTime: 60 * 1000,
       refetchOnWindowFocus: false,
     },
   },
@@ -38,11 +37,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   lastUpdated: null,
   hasFreshData: false,
   fetchInitialData: async () => {
-
     try {
-      // Check if IndexedDB has any data
       const dbHasData = await hasData();
-
 
       const topSnapshot = await getTopSnapshot();
       let cachedTop10: Cryptocurrency[] = [];
@@ -51,10 +47,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
       if (topSnapshot && topSnapshot.items.length > 0) {
         cachedTop10 = topSnapshot.items as Cryptocurrency[];
-        // Try to get the first page of cached data
         cachedData = await getCryptoDataByPage(0, get().pageSize);
         if (cachedData.length > 0) {
-          // Get total count from meta store if available
           const totalCount = await getTotalCount();
           if (totalCount !== null) {
             cachedTotalCount = totalCount;
@@ -67,16 +61,14 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           totalItems: cachedTotalCount,
           loading: false,
           initialLoading: false,
-          hasFreshData: false, // This is cached data, not fresh
+          hasFreshData: false,
           lastUpdated: topSnapshot.timestamp,
         });
       } else {
-        // If no cached top 10 snapshot, try to get from first page
         const cachedPage = await getCryptoDataByPage(0, 20);
         if (cachedPage.length > 0) {
           cachedTop10 = cachedPage.slice(0, 10);
           cachedData = await getCryptoDataByPage(0, get().pageSize);
-          // Get total count from meta store if available
           const totalCount = await getTotalCount();
           if (totalCount !== null) {
             cachedTotalCount = totalCount;
@@ -88,10 +80,9 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
             totalItems: cachedTotalCount,
             loading: false,
             initialLoading: false,
-            hasFreshData: false, // This is cached data, not fresh
+            hasFreshData: false,
           });
         } else {
-
           set({
             loading: true,
             initialLoading: true,
@@ -101,10 +92,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         }
       }
 
-      // Only fetch from API if IndexedDB is empty
       if (!dbHasData || cachedData.length === 0) {
         const { pageSize } = get();
-
 
         set({
           loading: true,
@@ -112,7 +101,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           filteredCryptos: [],
           cryptocurrencies: [],
         });
-
 
         const apiResponse = await queryClient.fetchQuery({
           queryKey: ['cryptocurrenciesPage', 1, pageSize, 'rank', 'desc'],
@@ -122,10 +110,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         const freshTop10 = freshData.slice(0, 10);
         const totalCount = parseInt(apiResponse.data.totalCount, 10);
 
-        // Save fresh data to IndexedDB
         await saveCryptoPage(freshData, totalCount);
 
-        // Update the top 10 snapshot with fresh data
         if (freshTop10.length > 0) {
           await saveTopSnapshot(freshTop10);
         }
@@ -141,12 +127,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           hasFreshData: true,
         });
       }
-
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch cryptocurrency data',
         loading: false,
-        initialLoading: false, // Make sure to reset this on error too
+        initialLoading: false,
         hasFreshData: false,
       });
     }
@@ -157,7 +142,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     try {
       const { pageSize, displayedCount, initialTop10 } = get();
       const desiredStartIndex = (page - 1) * displayedCount;
-      const baseIndex = Math.floor(desiredStartIndex / pageSize); // 
+      const baseIndex = Math.floor(desiredStartIndex / pageSize);
       const offset = desiredStartIndex % pageSize;
 
       let baseData = await getCryptoDataByPage(baseIndex, pageSize);
@@ -171,7 +156,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         await saveCryptoPage(baseData, totalCount);
       }
 
-      // If window spans into next server page, merge in next page
       let combined = baseData as Cryptocurrency[];
       const needed = offset + displayedCount;
       if (needed > pageSize) {
@@ -213,8 +197,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     const { currentPage, displayedCount, cryptocurrencies, initialTop10 } = get();
     const newCount = Math.min(displayedCount + 50, 200);
 
-    // Calculate the starting index based on the current page
-    // This ensures we're expanding items from the same page context
     const startIndex = (currentPage - 1) * displayedCount;
     const newEndIndex = Math.min(startIndex + newCount, cryptocurrencies.length);
     const window = cryptocurrencies.slice(startIndex, newEndIndex);
@@ -228,7 +210,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   setSearchTerm: (term: string) => {
     set((state) => {
-      // If there's a search term, filter the full dataset
       if (term) {
         const filtered = state.cryptocurrencies.filter(
           (crypto) =>
@@ -240,7 +221,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           filteredCryptos: filtered.slice(0, state.displayedCount),
         };
       } else {
-        // When search is cleared, show the current page of data
         const startIndex = (state.currentPage - 1) * state.displayedCount;
         const endIndex = Math.min(startIndex + state.displayedCount, state.cryptocurrencies.length);
         return {
@@ -258,7 +238,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       const baseIndex = Math.floor(desiredStartIndex / pageSize);
       const offset = desiredStartIndex % pageSize;
 
-      // Always fetch and update the base page with fresh data using QueryClient
       const apiResponse = await queryClient.fetchQuery({
         queryKey: ['cryptocurrenciesPage', baseIndex + 1, pageSize, 'rank', 'desc'],
         queryFn: async () => await fetchCryptocurrenciesPage(baseIndex + 1, pageSize),
@@ -267,10 +246,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       const totalCount = parseInt(apiResponse.data.totalCount, 10);
       await saveCryptoPage(freshBaseData, totalCount);
 
-      // Check if current display window requires data from the next page
       let combined = [...freshBaseData];
       if (offset + displayedCount > pageSize) {
-        // Fetch next page if needed
         const nextPageIndex = baseIndex + 2;
         const nextApiResponse = await queryClient.fetchQuery({
           queryKey: ['cryptocurrenciesPage', nextPageIndex, pageSize, 'rank', 'desc'],
@@ -281,10 +258,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         combined = [...combined, ...freshNextData];
       }
 
-      // Get the current window of data from the combined fresh data
       const currentWindow = combined.slice(offset, offset + displayedCount);
 
-      // Apply search filter if there's a search term
       let filteredWindow = currentWindow;
       if (searchTerm) {
         filteredWindow = currentWindow.filter(
@@ -294,7 +269,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         );
       }
 
-      // Update the top 10 snapshot if we're on the first page
       let updatedInitialTop10 = initialTop10;
       if (currentPage === 1 && !searchTerm) {
         const top10 = freshBaseData.slice(0, 10);
@@ -303,12 +277,12 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       }
 
       set({
-        cryptocurrencies: freshBaseData, // Update with the fresh base page data
-        initialTop10: updatedInitialTop10, // Preserve or update initialTop10
+        cryptocurrencies: freshBaseData,
+        initialTop10: updatedInitialTop10,
         filteredCryptos: filteredWindow,
         totalItems: totalCount,
         lastUpdated: Date.now(),
-        hasFreshData: true, // Mark that we now have fresh data
+        hasFreshData: true,
       });
     } catch (error) {
       set({
