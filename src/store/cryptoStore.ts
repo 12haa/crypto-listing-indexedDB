@@ -90,12 +90,28 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
             initialLoading: false,
             hasFreshData: false, // This is cached data, not fresh
           });
+        } else {
+          // No cached data at all - ensure loading state is shown and clear filtered data
+          set({
+            loading: true,
+            initialLoading: true,
+            filteredCryptos: [],
+            cryptocurrencies: [],
+          });
         }
       }
 
       // Only fetch from API if IndexedDB is empty
       if (!dbHasData || cachedData.length === 0) {
         const { pageSize } = get();
+
+        // Ensure loading state is set and data is cleared (in case it wasn't set above)
+        set({
+          loading: true,
+          initialLoading: true,
+          filteredCryptos: [],
+          cryptocurrencies: [],
+        });
 
         // Fetch fresh data from API using QueryClient
         const apiResponse = await queryClient.fetchQuery({

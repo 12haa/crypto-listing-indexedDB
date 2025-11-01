@@ -9,7 +9,6 @@ import TableHeader from '@/components/elements/TableHeader';
 import { useCryptoStore } from '@/store/cryptoStore';
 import { Cryptocurrency } from '@/types';
 
-
 const CryptoListPage = () => {
   const {
     filteredCryptos,
@@ -117,28 +116,33 @@ const CryptoListPage = () => {
                   )
                 ) : currentPage === 1 ? (
                   // If no search term and on page 1, use sticky behavior for first 10 items
-                  <>
-                    {filteredCryptos.slice(0, 10).map((crypto: Cryptocurrency, index: number) => {
-                      const cachedCrypto = initialTop10[index];
-                      const keyPrefix = cachedCrypto && !hasFreshData ? 'cached' : 'fresh';
-                      return (
-                        <CryptoItem
-                          key={`${keyPrefix}-${crypto.id}`}
-                          crypto={crypto}
-                          isSticky={true}
-                          cachedCrypto={cachedCrypto}
-                          hasFreshData={hasFreshData}
-                          isLoading={initialLoading}
-                        />
-                      );
-                    })}
-                    {filteredCryptos.length > 10 &&
-                      filteredCryptos
-                        .slice(10)
-                        .map((crypto: Cryptocurrency) => (
-                          <CryptoItem key={crypto.id} crypto={crypto} />
-                        ))}
-                  </>
+                  initialLoading && filteredCryptos.length === 0 ? (
+                    // Show skeletons when loading and no data
+                    Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
+                  ) : (
+                    <>
+                      {filteredCryptos.slice(0, 10).map((crypto: Cryptocurrency, index: number) => {
+                        const cachedCrypto = initialTop10[index];
+                        const keyPrefix = cachedCrypto && !hasFreshData ? 'cached' : 'fresh';
+                        return (
+                          <CryptoItem
+                            key={`${keyPrefix}-${crypto.id}`}
+                            crypto={crypto}
+                            isSticky={true}
+                            cachedCrypto={cachedCrypto}
+                            hasFreshData={hasFreshData}
+                            isLoading={initialLoading}
+                          />
+                        );
+                      })}
+                      {filteredCryptos.length > 10 &&
+                        filteredCryptos
+                          .slice(10)
+                          .map((crypto: Cryptocurrency) => (
+                            <CryptoItem key={crypto.id} crypto={crypto} />
+                          ))}
+                    </>
+                  )
                 ) : // If no search term and not on page 1, show paginated results normally
                 initialLoading ? (
                   Array.from({ length: 10 }).map((_, i) => <CryptoItemSkeleton key={`s-${i}`} />)
