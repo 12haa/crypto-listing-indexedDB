@@ -38,12 +38,12 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   lastUpdated: null,
   hasFreshData: false,
   fetchInitialData: async () => {
-    // Snapshot-first approach: Show cached data immediately for instant UI
+
     try {
       // Check if IndexedDB has any data
       const dbHasData = await hasData();
 
-      // First, get the cached top 10 to show immediately
+
       const topSnapshot = await getTopSnapshot();
       let cachedTop10: Cryptocurrency[] = [];
       let cachedData: Cryptocurrency[] = [];
@@ -91,7 +91,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
             hasFreshData: false, // This is cached data, not fresh
           });
         } else {
-          // No cached data at all - ensure loading state is shown and clear filtered data
+
           set({
             loading: true,
             initialLoading: true,
@@ -105,7 +105,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (!dbHasData || cachedData.length === 0) {
         const { pageSize } = get();
 
-        // Ensure loading state is set and data is cleared (in case it wasn't set above)
+
         set({
           loading: true,
           initialLoading: true,
@@ -113,7 +113,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           cryptocurrencies: [],
         });
 
-        // Fetch fresh data from API using QueryClient
+
         const apiResponse = await queryClient.fetchQuery({
           queryKey: ['cryptocurrenciesPage', 1, pageSize, 'rank', 'desc'],
           queryFn: async () => await fetchCryptocurrenciesPage(1, pageSize),
@@ -130,7 +130,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           await saveTopSnapshot(freshTop10);
         }
 
-        // Update state with fresh data
         set({
           cryptocurrencies: freshData,
           initialTop10: freshTop10,
@@ -142,7 +141,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           hasFreshData: true,
         });
       }
-      // If IndexedDB has data, we've already shown it above, so we're done
+
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch cryptocurrency data',
@@ -158,7 +157,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     try {
       const { pageSize, displayedCount, initialTop10 } = get();
       const desiredStartIndex = (page - 1) * displayedCount;
-      const baseIndex = Math.floor(desiredStartIndex / pageSize); // 0-based server page index
+      const baseIndex = Math.floor(desiredStartIndex / pageSize); // 
       const offset = desiredStartIndex % pageSize;
 
       let baseData = await getCryptoDataByPage(baseIndex, pageSize);
