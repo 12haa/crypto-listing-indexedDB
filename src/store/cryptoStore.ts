@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { QueryClient } from '@tanstack/react-query';
 
 import {
   saveCryptoPage,
@@ -10,6 +11,16 @@ import {
 } from '@/services/indexedDB';
 import { fetchCryptocurrenciesPage } from '@/hooks/queries/useFetchCryptocurrenciesPage';
 import { Cryptocurrency, CryptoState } from '@/types';
+
+// Create a QueryClient instance for use in the store
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   cryptocurrencies: [],
@@ -86,8 +97,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (!dbHasData || cachedData.length === 0) {
         const { pageSize } = get();
 
-        // Fetch fresh data from API
-        const apiResponse = await fetchCryptocurrenciesPage(1, pageSize);
+        // Fetch fresh data from API using QueryClient
+        const apiResponse = await queryClient.fetchQuery({
+          queryKey: ['cryptocurrenciesPage', 1, pageSize, 'rank', 'desc'],
+          queryFn: async () => await fetchCryptocurrenciesPage(1, pageSize),
+        });
         const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
         const freshTop10 = freshData.slice(0, 10);
         const totalCount = parseInt(apiResponse.data.totalCount, 10);
@@ -133,7 +147,10 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
       let baseData = await getCryptoDataByPage(baseIndex, pageSize);
       if (baseData.length === 0) {
-        const resp = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
+        const resp = await queryClient.fetchQuery({
+          queryKey: ['cryptocurrenciesPage', baseIndex + 1, pageSize, 'rank', 'desc'],
+          queryFn: async () => await fetchCryptocurrenciesPage(baseIndex + 1, pageSize),
+        });
         baseData = resp.data.cryptoCurrencyList as Cryptocurrency[];
         const totalCount = parseInt(resp.data.totalCount, 10);
         await saveCryptoPage(baseData, totalCount);
@@ -145,7 +162,10 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (needed > pageSize) {
         let nextData = await getCryptoDataByPage(baseIndex + 1, pageSize);
         if (nextData.length === 0) {
-          const resp2 = await fetchCryptocurrenciesPage(baseIndex + 2, pageSize);
+          const resp2 = await queryClient.fetchQuery({
+            queryKey: ['cryptocurrenciesPage', baseIndex + 2, pageSize, 'rank', 'desc'],
+            queryFn: async () => await fetchCryptocurrenciesPage(baseIndex + 2, pageSize),
+          });
           nextData = resp2.data.cryptoCurrencyList as Cryptocurrency[];
           const totalCount2 = parseInt(resp2.data.totalCount, 10);
           await saveCryptoPage(nextData, totalCount2);
@@ -223,8 +243,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       const baseIndex = Math.floor(desiredStartIndex / pageSize);
       const offset = desiredStartIndex % pageSize;
 
-      // Always fetch and update the base page with fresh data
-      const apiResponse = await fetchCryptocurrenciesPage(baseIndex + 1, pageSize);
+      // Always fetch and update the base page with fresh data using QueryClient
+      const apiResponse = await queryClient.fetchQuery({
+        queryKey: ['cryptocurrenciesPage', baseIndex + 1, pageSize, 'rank', 'desc'],
+        queryFn: async () => await fetchCryptocurrenciesPage(baseIndex + 1, pageSize),
+      });
       const freshBaseData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
       const totalCount = parseInt(apiResponse.data.totalCount, 10);
       await saveCryptoPage(freshBaseData, totalCount);
@@ -234,7 +257,10 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (offset + displayedCount > pageSize) {
         // Fetch next page if needed
         const nextPageIndex = baseIndex + 2;
-        const nextApiResponse = await fetchCryptocurrenciesPage(nextPageIndex, pageSize);
+        const nextApiResponse = await queryClient.fetchQuery({
+          queryKey: ['cryptocurrenciesPage', nextPageIndex, pageSize, 'rank', 'desc'],
+          queryFn: async () => await fetchCryptocurrenciesPage(nextPageIndex, pageSize),
+        });
         const freshNextData = nextApiResponse.data.cryptoCurrencyList as Cryptocurrency[];
         await saveCryptoPage(freshNextData, parseInt(nextApiResponse.data.totalCount, 10));
         combined = [...combined, ...freshNextData];

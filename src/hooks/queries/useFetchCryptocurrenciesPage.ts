@@ -1,6 +1,7 @@
-
 import { api } from '@/config/apiConfig';
+import { useQuery } from '@tanstack/react-query';
 import { CryptoCurrencyListResponse } from '@/types/cryptoTypes/cryptoTypes';
+
 export const fetchCryptocurrenciesPage = async (
   page: number,
   pageSize: number,
@@ -23,4 +24,23 @@ export const fetchCryptocurrenciesPage = async (
     headers: { Accept: 'application/json' },
   });
   return response as unknown as CryptoCurrencyListResponse;
+};
+
+export const useFetchCryptocurrenciesPage = (
+  page: number,
+  pageSize: number,
+  sortBy: string = 'rank',
+  sortType: 'asc' | 'desc' = 'desc',
+  enabled: boolean = true
+) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['cryptocurrenciesPage', page, pageSize, sortBy, sortType],
+    queryFn: async (): Promise<CryptoCurrencyListResponse> => {
+      return await fetchCryptocurrenciesPage(page, pageSize, sortBy, sortType);
+    },
+    enabled: enabled,
+    refetchInterval: false,
+  });
+
+  return { data, isLoading, error };
 };

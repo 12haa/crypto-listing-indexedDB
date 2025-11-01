@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.6",
     "axios": "^1.13.1",
     "idb": "^8.0.3",
     "next": "16.0.1",
