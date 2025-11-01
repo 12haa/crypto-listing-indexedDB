@@ -58,8 +58,6 @@ export interface CryptoCurrency {
   auditInfoList: AuditInfo[];
   badges: number[];
 }
-
-// Backward-compatible alias used across components
 export type Cryptocurrency = CryptoCurrency;
 
 export interface CryptoCurrencyListResponse {

@@ -1,7 +1,7 @@
 // Types extracted from src/services/indexedDB.ts
 // Centralized type definitions for the IndexedDB service layer
 
-import type { Cryptocurrency } from './apiTypes';
+import type { Cryptocurrency } from '../cryptoTypes/cryptoTypes';
 
 // Mirrors: type StoredCrypto = Cryptocurrency & { timestamp?: number };
 export type StoredCrypto = Cryptocurrency & { timestamp?: number };
@@ -32,5 +32,3 @@ export interface CacheEntry<T> {
   data: T;
   timestamp: number;
 }
-
-export type { Cryptocurrency };

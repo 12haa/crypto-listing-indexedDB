@@ -1,11 +1,11 @@
 import { openDB, IDBPDatabase } from 'idb';
 import type {
-  Cryptocurrency,
   StoredCrypto,
   SnapshotRecord,
   MetaTotalCount,
   CacheEntry,
 } from '@/app/types/services/indexedDBTypes';
+import { Cryptocurrency, CryptoCurrency } from '@/app/types/cryptoTypes/cryptoTypes';
 
 const DB_NAME = process.env.DB_NAME || 'CryptoDB';
 const DB_VERSION = Number(process.env.DB_VERSION) || 4;
@@ -67,7 +67,7 @@ export const initDB = async () => {
   return dbPromise;
 };
 
-export const saveCryptoPage = async (cryptos: Cryptocurrency[], totalCount?: number) => {
+export const saveCryptoPage = async (cryptos: CryptoCurrency[], totalCount?: number) => {
   const db = await initDB();
   const now = Date.now();
 

@@ -1,7 +1,8 @@
-// Types extracted from src/store/cryptoStore.ts
-// Centralized type definitions for the crypto store layer
 
-import type { Cryptocurrency } from '../services/apiTypes';
+
+import { Cryptocurrency } from "../cryptoTypes/cryptoTypes";
+
+
 
 export interface CryptoState {
   cryptocurrencies: Cryptocurrency[];

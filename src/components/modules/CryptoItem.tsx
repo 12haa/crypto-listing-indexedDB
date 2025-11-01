@@ -1,6 +1,7 @@
 import React from 'react';
-import { Cryptocurrency } from '@/services/api';
+
 import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { Cryptocurrency } from '@/app/types/cryptoTypes/cryptoTypes';
 
 interface CryptoItemProps {
   crypto: Cryptocurrency;
@@ -16,7 +17,7 @@ const NameCell: React.FC<{ name: string; symbol: string }> = ({ name, symbol }) 
 const ChangeCell: React.FC<{ change24h?: number }> = ({ change24h }) => {
   const isPositive = change24h !== undefined && change24h >= 0;
   const changeValue = change24h !== undefined ? Math.abs(change24h) : null;
-  
+
   return (
     <td className="py-4 px-4 text-right">
       <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>

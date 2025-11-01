@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Cryptocurrency } from '@/services/api';
+
 import CryptoItem from './CryptoItem';
 import CryptoItemSkeleton from './CryptoItemSkeleton';
+import { Cryptocurrency } from '@/app/types';
 
 interface StickyTop10Props {
   cachedTop10: Cryptocurrency[];
