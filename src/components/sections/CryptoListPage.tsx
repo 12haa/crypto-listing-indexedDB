@@ -1,7 +1,5 @@
 'use client';
-
-import React, { useEffect, useState } from 'react';
-
+import { useEffect, useState } from 'react';
 import CryptoItem from '@/components/modules/CryptoItem';
 import CryptoItemSkeleton from '@/components/modules/CryptoItemSkeleton';
 import Pagination from '@/components/modules/Pagination';
@@ -9,8 +7,8 @@ import SearchBar from '@/components/elements/SearchBar';
 import StatsBar from '@/components/modules/StatsBar';
 import TableHeader from '@/components/elements/TableHeader';
 import StickyTop10 from '@/components/modules/StickyTop10';
-import { Cryptocurrency } from '@/services/api';
 import { useCryptoStore } from '@/store/cryptoStore';
+import { Cryptocurrency } from '@/app/types';
 
 const CryptoListPage = () => {
   const {
