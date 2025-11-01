@@ -4,7 +4,7 @@ import type { Cryptocurrency } from '@/services/api';
 type StoredCrypto = Cryptocurrency & { timestamp?: number };
 
 const DB_NAME = 'CryptoDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE_NAME = 'cryptocurrencies';
 const META_STORE = 'meta';
 
