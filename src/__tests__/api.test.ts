@@ -1,40 +1,42 @@
+// Mock api config to avoid making real API calls during testing
+jest.mock('@/config/apiConfig', () => ({
+  api: {
+    get: jest.fn(),
+  },
+}));
 
-
-// Mock axios to avoid making real API calls during testing
-jest.mock('axios');
 import { fetchCryptocurrenciesPage } from '@/hooks/queries/useFetchCryptocurrenciesPage';
-import axios from 'axios';
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+import { api } from '@/config/apiConfig';
+
+const mockedApi = api as jest.Mocked<typeof api>;
 
 describe('API Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('fetchCryptocurrencies', () => {
+  describe('fetchCryptocurrenciesPage', () => {
     it('should call the API with correct parameters', async () => {
       const mockResponse = {
         data: {
-          status: {
-            timestamp: '2023-01-01T00:00:00.000Z',
-            error_code: 0,
-            error_message: null,
-            elapsed: 10,
-            credit_count: 1,
-          },
-          data: {
-            crypto_currencies: [],
-            total_count: 0,
-          },
+          cryptoCurrencyList: [],
+          totalCount: '0',
+        },
+        status: {
+          timestamp: '2023-01-01T00:00:00.000Z',
+          error_code: '0',
+          error_message: '',
+          elapsed: '10',
+          credit_count: 1,
         },
       };
 
-      mockedAxios.get.mockResolvedValue(mockResponse);
+      mockedApi.get.mockResolvedValue(mockResponse);
 
       await fetchCryptocurrenciesPage(1, 10, 'rank', 'desc');
 
-      expect(axios.get).toHaveBeenCalledWith(
-        'https://api.coinmarketcap.com/dataapi/v3/cryptocurrency/listing',
+      expect(api.get).toHaveBeenCalledWith(
+        '',
         expect.objectContaining({
           params: expect.objectContaining({
             start: 1,
@@ -45,6 +47,10 @@ describe('API Service', () => {
             cryptoType: 'all',
             tagType: 'all',
             audited: false,
+            aux: expect.any(String),
+          }),
+          headers: expect.objectContaining({
+            Accept: 'application/json',
           }),
         })
       );
@@ -52,7 +58,7 @@ describe('API Service', () => {
 
     it('should handle errors properly', async () => {
       const mockError = new Error('Network error');
-      mockedAxios.get.mockRejectedValue(mockError);
+      mockedApi.get.mockRejectedValue(mockError);
 
       await expect(fetchCryptocurrenciesPage(1, 10, 'rank', 'desc')).rejects.toThrow(
         'Network error'
