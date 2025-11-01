@@ -3,9 +3,6 @@ import { fetchCryptocurrenciesPage, type Cryptocurrency } from '@/services/api';
 import {
   saveCryptoPage,
   getCryptoDataByPage,
-  getLastUpdated,
-  getCachedTotalCount,
-  getTopCryptos,
   saveTopSnapshot,
   getTopSnapshot,
 } from '@/services/indexedDB';
@@ -84,11 +81,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
       // Background sync: Fetch fresh data from API
       const { pageSize } = get();
-      const [cachedPage, cachedUpdatedAt, cachedTotal] = await Promise.all([
-        getCryptoDataByPage(0, pageSize),
-        getLastUpdated(),
-        getCachedTotalCount(),
-      ]);
 
       // Fetch fresh data from API in the background
       const apiResponse = await fetchCryptocurrenciesPage(1, pageSize);
@@ -104,18 +96,17 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         await saveTopSnapshot(freshTop10);
       }
 
-      // Now update the state with fresh data, but handle the UI transition smoothly
-      set((state) => ({
+      // Update state with fresh data
+      set({
         cryptocurrencies: freshData,
-        initialTop10: cachedTop10, // Keep the initially shown cached top 10 for reference
-        filteredCryptos: freshTop10, // Show fresh top 10 data
+        initialTop10: cachedTop10,
+        filteredCryptos: freshTop10,
         totalItems: totalCount,
         loading: false,
-        initialLoading: false, // Initial loading complete
+        initialLoading: false,
         lastUpdated: Date.now(),
-        displayedCount: state.displayedCount, // Preserve current display count
-        hasFreshData: true, // Mark that we now have fresh data
-      }));
+        hasFreshData: true,
+      });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch cryptocurrency data',
@@ -129,7 +120,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   goToPage: async (page: number) => {
     set({ loading: true });
     try {
-      const { pageSize, displayedCount, initialTop10, hasFreshData } = get();
+      const { pageSize, displayedCount, initialTop10 } = get();
       const desiredStartIndex = (page - 1) * displayedCount;
       const baseIndex = Math.floor(desiredStartIndex / pageSize); // 0-based server page index
       const offset = desiredStartIndex % pageSize;
@@ -159,12 +150,10 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       const window = combined.slice(offset, offset + displayedCount);
       set({
         cryptocurrencies: baseData as Cryptocurrency[],
-        initialTop10, // Preserve the initial top 10
+        initialTop10,
         filteredCryptos: window,
         currentPage: page,
-        displayedCount: displayedCount, // Preserve current display count
         loading: false,
-        hasFreshData, // Preserve the hasFreshData state
       });
     } catch (error) {
       set({
@@ -180,20 +169,19 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   },
 
   showMore: async () => {
-    const { currentPage, displayedCount, cryptocurrencies, initialTop10, hasFreshData } = get();
+    const { currentPage, displayedCount, cryptocurrencies, initialTop10 } = get();
     const newCount = Math.min(displayedCount + 50, 200);
-    
+
     // Calculate the starting index based on the current page
     // This ensures we're expanding items from the same page context
     const startIndex = (currentPage - 1) * displayedCount;
     const newEndIndex = Math.min(startIndex + newCount, cryptocurrencies.length);
     const window = cryptocurrencies.slice(startIndex, newEndIndex);
-    
+
     set({
-      initialTop10, // Preserve the initial top 10
+      initialTop10,
       filteredCryptos: window,
-      displayedCount: newCount, // Update the number of items to display
-      hasFreshData, // Preserve the hasFreshData state
+      displayedCount: newCount,
     });
   },
 
@@ -209,17 +197,14 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         return {
           searchTerm: term,
           filteredCryptos: filtered.slice(0, state.displayedCount),
-          hasFreshData: state.hasFreshData, // Preserve hasFreshData state
         };
       } else {
-        // When search is cleared, show the current page of data based on display count
+        // When search is cleared, show the current page of data
         const startIndex = (state.currentPage - 1) * state.displayedCount;
         const endIndex = Math.min(startIndex + state.displayedCount, state.cryptocurrencies.length);
-        const pageData = state.cryptocurrencies.slice(startIndex, endIndex);
         return {
           searchTerm: term,
-          filteredCryptos: pageData,
-          hasFreshData: state.hasFreshData, // Preserve hasFreshData state
+          filteredCryptos: state.cryptocurrencies.slice(startIndex, endIndex),
         };
       }
     });
@@ -278,11 +263,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         lastUpdated: Date.now(),
         hasFreshData: true, // Mark that we now have fresh data
       });
-
-      // If the current page is not page 1, ensure the currentPage is preserved in state
-      if (currentPage !== 1) {
-        set({ currentPage });
-      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to refresh cryptocurrency data',

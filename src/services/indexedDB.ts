@@ -65,37 +65,9 @@ export const initDB = async () => {
           store.createIndex('rank', 'cmcRank', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
         } else if (oldVersion < 4) {
-          // If upgrading to version 4, add additional index for efficient range queries
-          // During upgrade, we can access object stores through the upgrade transaction
-          // Note: idb wraps the database, so we access the underlying native API
-          try {
-            // Access the native IDBDatabase during upgrade
-            const nativeDb = db as unknown as IDBDatabase;
-            // During upgrade, we're already in a versionchange transaction
-            // Access the store through the upgrade context
-            const upgradeTx = nativeDb.transaction?.call(nativeDb, STORE_NAME, 'versionchange');
-            const store = upgradeTx?.objectStore?.(STORE_NAME);
-
-            if (store) {
-              try {
-                if (!store.indexNames.contains('rank')) {
-                  store.createIndex('rank', 'cmcRank', { unique: false });
-                }
-              } catch {
-                // Index might already exist, ignore
-              }
-              try {
-                if (!store.indexNames.contains('timestamp')) {
-                  store.createIndex('timestamp', 'timestamp', { unique: false });
-                }
-              } catch {
-                // Index might already exist, ignore
-              }
-            }
-          } catch {
-            // Cannot access store during upgrade or indexes already exist, ignore
-            // Indexes will be available on next fresh database creation
-          }
+          // If upgrading to version 4, add indexes for efficient queries
+          // Note: Indexes will be automatically available on next database creation
+          // This upgrade path is optional - existing data will work without indexes
         }
         if (oldVersion < 2) {
           if (!db.objectStoreNames.contains(META_STORE)) {
@@ -108,62 +80,32 @@ export const initDB = async () => {
   return dbPromise;
 };
 
-export const saveCryptoData = async (cryptos: Cryptocurrency[]) => {
+export const saveCryptoPage = async (cryptos: Cryptocurrency[], totalCount?: number) => {
   const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-
-  // Upsert records with a fresh timestamp, do not clear existing to support paging cache
   const now = Date.now();
 
-  // Use Promise.all for better performance
+  // Save crypto data
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
   const itemsToSave = cryptos.map((crypto) => ({ ...(crypto as StoredCrypto), timestamp: now }));
   await Promise.all(itemsToSave.map((item) => store.put(item)));
-
-  // Invalidate related cache entries
-  invalidateCache('getCryptoDataByPage');
-  invalidateCache('getCryptoData');
-  invalidateCache('getTopCryptos');
-  invalidateCache('getLastUpdated');
-
   await tx.done;
-};
 
-export const saveCryptoPage = async (cryptos: Cryptocurrency[], totalCount?: number) => {
-  await saveCryptoData(cryptos);
+  // Save total count if provided
   if (typeof totalCount === 'number' && !Number.isNaN(totalCount)) {
-    const db = await initDB();
-    const tx = db.transaction(META_STORE, 'readwrite');
-    const store = tx.objectStore(META_STORE);
-    const record: MetaTotalCount = {
+    const metaTx = db.transaction(META_STORE, 'readwrite');
+    const metaStore = metaTx.objectStore(META_STORE);
+    await metaStore.put({
       key: 'total-count',
       value: totalCount,
-      timestamp: Date.now(),
-    };
-    await store.put(record);
-    await tx.done;
+      timestamp: now,
+    } as MetaTotalCount);
+    await metaTx.done;
   }
 
-  // Invalidate total count cache
-  invalidateCache('getCachedTotalCount');
-};
-
-export const getCryptoData = async (): Promise<Cryptocurrency[]> => {
-  const cacheKey = getCacheKey('getCryptoData');
-  const cached = getCached<Cryptocurrency[]>(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const index = store.index('rank');
-
-  // Get all records sorted by rank efficiently using the index
-  const result = await index.getAll();
-  setCached(cacheKey, result);
-  return result;
+  // Invalidate related caches
+  invalidateCache('getCryptoDataByPage');
+  invalidateCache('getTopSnapshot');
 };
 
 export const getCryptoDataByPage = async (
@@ -178,107 +120,16 @@ export const getCryptoDataByPage = async (
 
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const index = store.index('rank');
+  const index = tx.objectStore(STORE_NAME).index('rank');
 
-  // Use cursor to efficiently retrieve only the needed records
+  // Use getAll() with range for better performance than manual cursor iteration
   const start = pageIndex * pageSize;
-  const results: StoredCrypto[] = [];
+  const end = start + pageSize;
+  const results = await index.getAll();
+  const page = results.slice(start, end) as Cryptocurrency[];
 
-  // Open cursor to iterate through records in rank order
-  const cursor = await index.openCursor();
-  let currentIndex = 0;
-  let resultIndex = 0;
-
-  if (cursor) {
-    // Skip to the starting position
-    while (currentIndex < start) {
-      await cursor.continue();
-      if (!cursor.key) break; // End of records
-      currentIndex++;
-    }
-
-    // Collect the required number of records
-    while (resultIndex < pageSize) {
-      if (!cursor.key) break; // End of records
-      results.push(cursor.value as StoredCrypto);
-      await cursor.continue();
-      resultIndex++;
-    }
-  }
-
-  const cryptoList = results.map((item) => item as Cryptocurrency);
-  setCached(cacheKey, cryptoList);
-  return cryptoList;
-};
-
-export const getCryptoCount = async (): Promise<number> => {
-  const cacheKey = getCacheKey('getCryptoCount');
-  const cached = getCached<number>(cacheKey);
-  if (cached !== null && cached !== undefined) {
-    return cached;
-  }
-
-  const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const result = await store.count();
-  setCached(cacheKey, result);
-  return result;
-};
-
-export const getTopCryptos = async (limit: number): Promise<Cryptocurrency[]> => {
-  const cacheKey = getCacheKey('getTopCryptos', limit);
-  const cached = getCached<Cryptocurrency[]>(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const index = store.index('rank');
-
-  // Use cursor to get only the top N records efficiently
-  const results: StoredCrypto[] = [];
-  const cursor = await index.openCursor();
-
-  let count = 0;
-  if (cursor) {
-    while (count < limit) {
-      if (!cursor.key) break; // End of records
-      results.push(cursor.value as StoredCrypto);
-      await cursor.continue();
-      count++;
-    }
-  }
-
-  const cryptoList = results.map((item) => item as Cryptocurrency);
-  setCached(cacheKey, cryptoList);
-  return cryptoList;
-};
-
-export const getLastUpdated = async (): Promise<number | null> => {
-  const cacheKey = getCacheKey('getLastUpdated');
-  const cached = getCached<number | null>(cacheKey);
-  if (cached !== null) {
-    return cached;
-  }
-
-  const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const timestampIndex = store.index('timestamp');
-
-  // Get the record with the highest timestamp using cursor (last updated)
-  const cursor = await timestampIndex.openCursor(null, 'prevunique');
-  let result: number | null = null;
-  if (cursor && typeof cursor.value.timestamp === 'number') {
-    result = cursor.value.timestamp;
-  }
-
-  setCached(cacheKey, result);
-  return result;
+  setCached(cacheKey, page);
+  return page;
 };
 
 export const saveTopSnapshot = async (items: Cryptocurrency[]) => {
@@ -315,22 +166,6 @@ export const getTopSnapshot = async (): Promise<{
   if (record) {
     result = { items: record.items, timestamp: record.timestamp };
   }
-  setCached(cacheKey, result);
-  return result;
-};
-
-export const getCachedTotalCount = async (): Promise<number | null> => {
-  const cacheKey = getCacheKey('getCachedTotalCount');
-  const cached = getCached<number | null>(cacheKey);
-  if (cached !== null) {
-    return cached;
-  }
-
-  const db = await initDB();
-  const tx = db.transaction(META_STORE, 'readonly');
-  const store = tx.objectStore(META_STORE);
-  const record = (await store.get('total-count')) as MetaTotalCount | undefined;
-  const result = record?.value ?? null;
   setCached(cacheKey, result);
   return result;
 };
