@@ -17,9 +17,11 @@ const PaginationButton: React.FC<PaginationButtonProps> = ({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`px-3 py-1 rounded-md cursor-pointer ${
-        active ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-      } disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+      className={`flex items-center justify-center min-w-[36px] h-9 rounded-lg cursor-pointer transition-all duration-200 ${
+        active 
+          ? 'bg-indigo-600 text-white shadow-md' 
+          : 'bg-white text-gray-700 border border-gray-200 hover:bg-indigo-50 hover:border-indigo-300'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-sm'}`}
     >
       {children}
     </button>

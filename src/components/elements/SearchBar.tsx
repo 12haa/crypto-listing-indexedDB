@@ -10,24 +10,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, loading }) => {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto mb-8">
-        <div className="h-12 w-full bg-gray-200 rounded-lg animate-pulse" />
+        <div className="h-14 w-full bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl animate-pulse" />
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto mb-8">
-      <div className="relative">
+      <div className="relative group">
         <input
           type="text"
           placeholder="Search cryptocurrencies..."
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full p-4 pr-12 border border-gray-300 text-black rounded-lg shadow-sm   "
+          className="w-full p-4 pl-14 pr-6 bg-white border border-gray-200 text-gray-700 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-lg"
         />
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-4">
           <svg
-            className="h-5 w-5 text-gray-400"
+            className="h-6 w-6 text-indigo-400 group-focus-within:text-indigo-600 transition-colors"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
             fill="currentColor"
