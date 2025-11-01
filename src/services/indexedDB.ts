@@ -12,7 +12,6 @@ const DB_VERSION = Number(process.env.DB_VERSION) || 4;
 const STORE_NAME = process.env.STORE_NAME || 'cryptocurrencies';
 const META_STORE = process.env.META_STORE || 'meta';
 
-
 // Simple in-memory cache to prevent repeated DB calls for the same data
 const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 30000; // 30 seconds TTL
@@ -156,4 +155,20 @@ export const getTopSnapshot = async (): Promise<{
   }
   setCached(cacheKey, result);
   return result;
+};
+
+export const hasData = async (): Promise<boolean> => {
+  const db = await initDB();
+  const tx = db.transaction(STORE_NAME, 'readonly');
+  const store = tx.objectStore(STORE_NAME);
+  const count = await store.count();
+  return count > 0;
+};
+
+export const getTotalCount = async (): Promise<number | null> => {
+  const db = await initDB();
+  const tx = db.transaction(META_STORE, 'readonly');
+  const store = tx.objectStore(META_STORE);
+  const totalCountRecord = (await store.get('total-count')) as MetaTotalCount | undefined;
+  return totalCountRecord ? totalCountRecord.value : null;
 };

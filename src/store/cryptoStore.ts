@@ -6,6 +6,8 @@ import {
   getCryptoDataByPage,
   saveTopSnapshot,
   getTopSnapshot,
+  hasData,
+  getTotalCount,
 } from '@/services/indexedDB';
 
 export const useCryptoStore = create<CryptoState>((set, get) => ({
@@ -26,62 +28,90 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   fetchInitialData: async () => {
     // Snapshot-first approach: Show cached data immediately for instant UI
     try {
+      // Check if IndexedDB has any data
+      const dbHasData = await hasData();
+
       // First, get the cached top 10 to show immediately
       const topSnapshot = await getTopSnapshot();
       let cachedTop10: Cryptocurrency[] = [];
+      let cachedData: Cryptocurrency[] = [];
+      let cachedTotalCount = 0;
 
       if (topSnapshot && topSnapshot.items.length > 0) {
         cachedTop10 = topSnapshot.items as Cryptocurrency[];
+        // Try to get the first page of cached data
+        cachedData = await getCryptoDataByPage(0, get().pageSize);
+        if (cachedData.length > 0) {
+          // Get total count from meta store if available
+          const totalCount = await getTotalCount();
+          if (totalCount !== null) {
+            cachedTotalCount = totalCount;
+          }
+        }
         set({
+          cryptocurrencies: cachedData.length > 0 ? cachedData : cachedTop10,
           initialTop10: cachedTop10,
           filteredCryptos: cachedTop10,
-          loading: true, // Still loading fresh data in background
-          initialLoading: true, // We're showing initial cached data
-          hasFreshData: false, // Will be set to true once fresh data loads
+          totalItems: cachedTotalCount,
+          loading: false,
+          initialLoading: false,
+          hasFreshData: false, // This is cached data, not fresh
+          lastUpdated: topSnapshot.timestamp,
         });
       } else {
         // If no cached top 10 snapshot, try to get from first page
         const cachedPage = await getCryptoDataByPage(0, 20);
         if (cachedPage.length > 0) {
           cachedTop10 = cachedPage.slice(0, 10);
+          cachedData = await getCryptoDataByPage(0, get().pageSize);
+          // Get total count from meta store if available
+          const totalCount = await getTotalCount();
+          if (totalCount !== null) {
+            cachedTotalCount = totalCount;
+          }
           set({
+            cryptocurrencies: cachedData,
             initialTop10: cachedTop10,
             filteredCryptos: cachedTop10,
-            loading: true, // Still loading fresh data in background
-            initialLoading: true, // We're showing initial cached data
-            hasFreshData: false, // Will be set to true once fresh data loads
+            totalItems: cachedTotalCount,
+            loading: false,
+            initialLoading: false,
+            hasFreshData: false, // This is cached data, not fresh
           });
         }
       }
 
-      // Background sync: Fetch fresh data from API
-      const { pageSize } = get();
+      // Only fetch from API if IndexedDB is empty
+      if (!dbHasData || cachedData.length === 0) {
+        const { pageSize } = get();
 
-      // Fetch fresh data from API in the background
-      const apiResponse = await fetchCryptocurrenciesPage(1, pageSize);
-      const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
-      const freshTop10 = freshData.slice(0, 10);
-      const totalCount = parseInt(apiResponse.data.totalCount, 10);
+        // Fetch fresh data from API
+        const apiResponse = await fetchCryptocurrenciesPage(1, pageSize);
+        const freshData = apiResponse.data.cryptoCurrencyList as Cryptocurrency[];
+        const freshTop10 = freshData.slice(0, 10);
+        const totalCount = parseInt(apiResponse.data.totalCount, 10);
 
-      // Save fresh data to IndexedDB
-      await saveCryptoPage(freshData, totalCount);
+        // Save fresh data to IndexedDB
+        await saveCryptoPage(freshData, totalCount);
 
-      // Update the top 10 snapshot with fresh data
-      if (freshTop10.length > 0) {
-        await saveTopSnapshot(freshTop10);
+        // Update the top 10 snapshot with fresh data
+        if (freshTop10.length > 0) {
+          await saveTopSnapshot(freshTop10);
+        }
+
+        // Update state with fresh data
+        set({
+          cryptocurrencies: freshData,
+          initialTop10: freshTop10,
+          filteredCryptos: freshTop10,
+          totalItems: totalCount,
+          loading: false,
+          initialLoading: false,
+          lastUpdated: Date.now(),
+          hasFreshData: true,
+        });
       }
-
-      // Update state with fresh data
-      set({
-        cryptocurrencies: freshData,
-        initialTop10: cachedTop10,
-        filteredCryptos: freshTop10,
-        totalItems: totalCount,
-        loading: false,
-        initialLoading: false,
-        lastUpdated: Date.now(),
-        hasFreshData: true,
-      });
+      // If IndexedDB has data, we've already shown it above, so we're done
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch cryptocurrency data',
