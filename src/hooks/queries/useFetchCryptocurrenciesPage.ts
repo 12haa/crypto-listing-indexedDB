@@ -1,4 +1,4 @@
-import { api } from '@/services/apiConfig';
+import { api } from '@/config/apiConfig';
 import type { CryptoCurrencyListResponse } from '@/app/types/services/apiTypes';
 
 export const fetchCryptocurrenciesPage = async (

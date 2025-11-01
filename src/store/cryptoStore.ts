@@ -10,7 +10,6 @@ import {
 } from '@/services/indexedDB';
 import { fetchCryptocurrenciesPage } from '@/hooks/queries/useFetchCryptocurrenciesPage';
 
-
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   cryptocurrencies: [],
   initialTop10: [],

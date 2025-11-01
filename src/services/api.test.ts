@@ -1,7 +1,8 @@
-import { fetchCryptocurrenciesPage } from '@/services/api';
+
 
 // Mock axios to avoid making real API calls during testing
 jest.mock('axios');
+import { fetchCryptocurrenciesPage } from '@/hooks/queries/useFetchCryptocurrenciesPage';
 import axios from 'axios';
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
