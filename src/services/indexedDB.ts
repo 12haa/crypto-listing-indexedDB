@@ -21,7 +21,7 @@ type MetaTotalCount = {
 };
 
 // Simple in-memory cache to prevent repeated DB calls for the same data
-const cache = new Map<string, any>();
+const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 30000; // 30 seconds TTL
 
 interface CacheEntry<T> {
@@ -32,7 +32,7 @@ interface CacheEntry<T> {
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 // Cache helper functions
-const getCacheKey = (operation: string, ...args: any[]): string => {
+const getCacheKey = (operation: string, ...args: unknown[]): string => {
   return `${operation}:${JSON.stringify(args)}`;
 };
 
@@ -64,14 +64,37 @@ export const initDB = async () => {
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
           store.createIndex('rank', 'cmcRank', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
-        } else {
+        } else if (oldVersion < 4) {
           // If upgrading to version 4, add additional index for efficient range queries
-          const store = db.transaction.objectStore(STORE_NAME);
-          if (oldVersion < 4 && !store.indexNames.contains('rank')) {
-            store.createIndex('rank', 'cmcRank', { unique: false });
-          }
-          if (oldVersion < 4 && !store.indexNames.contains('timestamp')) {
-            store.createIndex('timestamp', 'timestamp', { unique: false });
+          // During upgrade, we can access object stores through the upgrade transaction
+          // Note: idb wraps the database, so we access the underlying native API
+          try {
+            // Access the native IDBDatabase during upgrade
+            const nativeDb = db as unknown as IDBDatabase;
+            // During upgrade, we're already in a versionchange transaction
+            // Access the store through the upgrade context
+            const upgradeTx = nativeDb.transaction?.call(nativeDb, STORE_NAME, 'versionchange');
+            const store = upgradeTx?.objectStore?.(STORE_NAME);
+
+            if (store) {
+              try {
+                if (!store.indexNames.contains('rank')) {
+                  store.createIndex('rank', 'cmcRank', { unique: false });
+                }
+              } catch {
+                // Index might already exist, ignore
+              }
+              try {
+                if (!store.indexNames.contains('timestamp')) {
+                  store.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+              } catch {
+                // Index might already exist, ignore
+              }
+            }
+          } catch {
+            // Cannot access store during upgrade or indexes already exist, ignore
+            // Indexes will be available on next fresh database creation
           }
         }
         if (oldVersion < 2) {
@@ -92,10 +115,10 @@ export const saveCryptoData = async (cryptos: Cryptocurrency[]) => {
 
   // Upsert records with a fresh timestamp, do not clear existing to support paging cache
   const now = Date.now();
-  
-  // Use bulk put for better performance
-  const itemsToSave = cryptos.map(crypto => ({ ...(crypto as StoredCrypto), timestamp: now }));
-  await store.bulkPut(itemsToSave);
+
+  // Use Promise.all for better performance
+  const itemsToSave = cryptos.map((crypto) => ({ ...(crypto as StoredCrypto), timestamp: now }));
+  await Promise.all(itemsToSave.map((item) => store.put(item)));
 
   // Invalidate related cache entries
   invalidateCache('getCryptoDataByPage');
@@ -120,7 +143,7 @@ export const saveCryptoPage = async (cryptos: Cryptocurrency[], totalCount?: num
     await store.put(record);
     await tx.done;
   }
-  
+
   // Invalidate total count cache
   invalidateCache('getCachedTotalCount');
 };
@@ -161,12 +184,12 @@ export const getCryptoDataByPage = async (
   // Use cursor to efficiently retrieve only the needed records
   const start = pageIndex * pageSize;
   const results: StoredCrypto[] = [];
-  
+
   // Open cursor to iterate through records in rank order
   const cursor = await index.openCursor();
   let currentIndex = 0;
   let resultIndex = 0;
-  
+
   if (cursor) {
     // Skip to the starting position
     while (currentIndex < start) {
@@ -174,7 +197,7 @@ export const getCryptoDataByPage = async (
       if (!cursor.key) break; // End of records
       currentIndex++;
     }
-    
+
     // Collect the required number of records
     while (resultIndex < pageSize) {
       if (!cursor.key) break; // End of records
@@ -192,7 +215,7 @@ export const getCryptoDataByPage = async (
 export const getCryptoCount = async (): Promise<number> => {
   const cacheKey = getCacheKey('getCryptoCount');
   const cached = getCached<number>(cacheKey);
-  if (cached !== undefined) {
+  if (cached !== null && cached !== undefined) {
     return cached;
   }
 
@@ -219,7 +242,7 @@ export const getTopCryptos = async (limit: number): Promise<Cryptocurrency[]> =>
   // Use cursor to get only the top N records efficiently
   const results: StoredCrypto[] = [];
   const cursor = await index.openCursor();
-  
+
   let count = 0;
   if (cursor) {
     while (count < limit) {
@@ -253,7 +276,7 @@ export const getLastUpdated = async (): Promise<number | null> => {
   if (cursor && typeof cursor.value.timestamp === 'number') {
     result = cursor.value.timestamp;
   }
-  
+
   setCached(cacheKey, result);
   return result;
 };
@@ -269,7 +292,7 @@ export const saveTopSnapshot = async (items: Cryptocurrency[]) => {
   };
   await store.put(record);
   await tx.done;
-  
+
   // Invalidate the top snapshot cache
   invalidateCache('getTopSnapshot');
 };
