@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { fetchCryptocurrenciesPage } from '@/services/api';
 import type { CryptoState, Cryptocurrency } from '@/app/types/store/cryptoStoreTypes';
 import {
   saveCryptoPage,
@@ -9,6 +8,8 @@ import {
   hasData,
   getTotalCount,
 } from '@/services/indexedDB';
+import { fetchCryptocurrenciesPage } from '@/hooks/queries/useFetchCryptocurrenciesPage';
+
 
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   cryptocurrencies: [],
