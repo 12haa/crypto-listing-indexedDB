@@ -1,33 +1,20 @@
 import { openDB, IDBPDatabase } from 'idb';
-import type { Cryptocurrency } from '@/services/api';
-
-type StoredCrypto = Cryptocurrency & { timestamp?: number };
+import type {
+  Cryptocurrency,
+  StoredCrypto,
+  SnapshotRecord,
+  MetaTotalCount,
+  CacheEntry,
+} from '@/app/types/services/indexedDBTypes';
 
 const DB_NAME = 'CryptoDB';
 const DB_VERSION = 4;
 const STORE_NAME = 'cryptocurrencies';
 const META_STORE = 'meta';
 
-type SnapshotRecord = {
-  key: 'snapshot-top10';
-  items: Cryptocurrency[];
-  timestamp: number;
-};
-
-type MetaTotalCount = {
-  key: 'total-count';
-  value: number;
-  timestamp: number;
-};
-
 // Simple in-memory cache to prevent repeated DB calls for the same data
 const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 30000; // 30 seconds TTL
-
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 

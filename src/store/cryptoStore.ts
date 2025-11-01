@@ -1,37 +1,12 @@
 import { create } from 'zustand';
-import { fetchCryptocurrenciesPage, type Cryptocurrency } from '@/services/api';
+import { fetchCryptocurrenciesPage } from '@/services/api';
+import type { CryptoState, Cryptocurrency } from '@/app/types/store/cryptoStoreTypes';
 import {
   saveCryptoPage,
   getCryptoDataByPage,
   saveTopSnapshot,
   getTopSnapshot,
 } from '@/services/indexedDB';
-
-interface CryptoState {
-  cryptocurrencies: Cryptocurrency[];
-  initialTop10: Cryptocurrency[]; // Always show these while loading the rest
-  filteredCryptos: Cryptocurrency[];
-  loading: boolean;
-  initialLoading: boolean; // Track if we're showing cached data initially
-  error: string | null;
-  currentPage: number;
-  pageSize: number; // server fetch size per page (we will fetch up to 200)
-  totalItems: number;
-  displayedCount: number;
-  searchTerm: string;
-  refreshInterval: number | null;
-  lastUpdated: number | null;
-  hasFreshData: boolean; // Track if we have fresh data loaded
-
-  fetchInitialData: () => Promise<void>;
-  goToPage: (page: number) => Promise<void>;
-  setPageSize: (size: number) => Promise<void>;
-  showMore: () => Promise<void>;
-  setSearchTerm: (term: string) => void;
-  refreshData: () => Promise<void>;
-  startAutoRefresh: (intervalMs: number) => void;
-  stopAutoRefresh: () => void;
-}
 
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   cryptocurrencies: [],

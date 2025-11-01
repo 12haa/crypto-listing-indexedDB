@@ -1,4 +1,4 @@
-import { fetchCryptocurrencies } from '@/services/api';
+import { fetchCryptocurrenciesPage } from '@/services/api';
 
 // Mock axios to avoid making real API calls during testing
 jest.mock('axios');
@@ -30,7 +30,7 @@ describe('API Service', () => {
 
       mockedAxios.get.mockResolvedValue(mockResponse);
 
-      await fetchCryptocurrencies(1, 10, 'rank', 'desc');
+      await fetchCryptocurrenciesPage(1, 10, 'rank', 'desc');
 
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.coinmarketcap.com/dataapi/v3/cryptocurrency/listing',
@@ -53,7 +53,9 @@ describe('API Service', () => {
       const mockError = new Error('Network error');
       mockedAxios.get.mockRejectedValue(mockError);
 
-      await expect(fetchCryptocurrencies()).rejects.toThrow('Network error');
+      await expect(fetchCryptocurrenciesPage(1, 10, 'rank', 'desc')).rejects.toThrow(
+        'Network error'
+      );
     });
   });
 });
