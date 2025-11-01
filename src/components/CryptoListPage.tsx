@@ -123,12 +123,12 @@ const CryptoListPage = () => {
                     hasFreshData={hasFreshData}
                     freshTop10={filteredCryptos.slice(0, 10)}
                   />
-                  {filteredCryptos.length > 10 &&
+                  {/* {filteredCryptos.length > 10 &&
                     filteredCryptos
                       .slice(10)
                       .map((crypto: Cryptocurrency) => (
                         <CryptoItem key={crypto.id} crypto={crypto} />
-                      ))}
+                      ))} */}
                 </>
               )}
             </tbody>

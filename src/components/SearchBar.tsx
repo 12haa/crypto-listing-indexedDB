@@ -23,7 +23,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, loading }) => {
           placeholder="Search cryptocurrencies..."
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full p-4 pr-12 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-4 pr-12 border border-gray-300 text-black rounded-lg shadow-sm   "
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
           <svg
