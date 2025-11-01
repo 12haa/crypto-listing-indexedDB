@@ -12,11 +12,11 @@ interface StickyTop10Props {
   freshTop10: Cryptocurrency[];
 }
 
-const StickyTop10: React.FC<StickyTop10Props> = ({ 
-  cachedTop10, 
-  isLoading, 
+const StickyTop10: React.FC<StickyTop10Props> = ({
+  cachedTop10,
+  isLoading,
   hasFreshData,
-  freshTop10 
+  freshTop10,
 }) => {
   const [showCached, setShowCached] = useState(true);
 
@@ -26,7 +26,7 @@ const StickyTop10: React.FC<StickyTop10Props> = ({
       const timer = setTimeout(() => {
         setShowCached(false);
       }, 100); // Small delay to make the transition smooth
-      
+
       return () => clearTimeout(timer);
     }
   }, [hasFreshData, showCached]);
@@ -34,9 +34,11 @@ const StickyTop10: React.FC<StickyTop10Props> = ({
   // If we have fresh data and no longer need to show cached data
   if (!showCached && !isLoading && hasFreshData) {
     return (
-      <>{freshTop10.map((crypto: Cryptocurrency) => (
-        <CryptoItem key={`fresh-${crypto.id}`} crypto={crypto} />
-      ))}</>
+      <>
+        {freshTop10.map((crypto: Cryptocurrency) => (
+          <CryptoItem key={`fresh-${crypto.id}`} crypto={crypto} />
+        ))}
+      </>
     );
   }
 

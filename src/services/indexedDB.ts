@@ -20,7 +20,41 @@ type MetaTotalCount = {
   timestamp: number;
 };
 
+// Simple in-memory cache to prevent repeated DB calls for the same data
+const cache = new Map<string, any>();
+const CACHE_TTL = 30000; // 30 seconds TTL
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
 let dbPromise: Promise<IDBPDatabase> | null = null;
+
+// Cache helper functions
+const getCacheKey = (operation: string, ...args: any[]): string => {
+  return `${operation}:${JSON.stringify(args)}`;
+};
+
+const getCached = <T>(key: string): T | null => {
+  const entry = cache.get(key) as CacheEntry<T> | undefined;
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data;
+  }
+  return null;
+};
+
+const setCached = <T>(key: string, data: T): void => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
+const invalidateCache = (operationPrefix: string): void => {
+  for (const key of cache.keys()) {
+    if (key.startsWith(operationPrefix)) {
+      cache.delete(key);
+    }
+  }
+};
 
 export const initDB = async () => {
   if (!dbPromise) {
@@ -30,6 +64,15 @@ export const initDB = async () => {
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
           store.createIndex('rank', 'cmcRank', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
+        } else {
+          // If upgrading to version 4, add additional index for efficient range queries
+          const store = db.transaction.objectStore(STORE_NAME);
+          if (oldVersion < 4 && !store.indexNames.contains('rank')) {
+            store.createIndex('rank', 'cmcRank', { unique: false });
+          }
+          if (oldVersion < 4 && !store.indexNames.contains('timestamp')) {
+            store.createIndex('timestamp', 'timestamp', { unique: false });
+          }
         }
         if (oldVersion < 2) {
           if (!db.objectStoreNames.contains(META_STORE)) {
@@ -49,9 +92,16 @@ export const saveCryptoData = async (cryptos: Cryptocurrency[]) => {
 
   // Upsert records with a fresh timestamp, do not clear existing to support paging cache
   const now = Date.now();
-  for (const crypto of cryptos) {
-    await store.put({ ...(crypto as StoredCrypto), timestamp: now } as StoredCrypto);
-  }
+  
+  // Use bulk put for better performance
+  const itemsToSave = cryptos.map(crypto => ({ ...(crypto as StoredCrypto), timestamp: now }));
+  await store.bulkPut(itemsToSave);
+
+  // Invalidate related cache entries
+  invalidateCache('getCryptoDataByPage');
+  invalidateCache('getCryptoData');
+  invalidateCache('getTopCryptos');
+  invalidateCache('getLastUpdated');
 
   await tx.done;
 };
@@ -70,65 +120,142 @@ export const saveCryptoPage = async (cryptos: Cryptocurrency[], totalCount?: num
     await store.put(record);
     await tx.done;
   }
+  
+  // Invalidate total count cache
+  invalidateCache('getCachedTotalCount');
 };
 
 export const getCryptoData = async (): Promise<Cryptocurrency[]> => {
+  const cacheKey = getCacheKey('getCryptoData');
+  const cached = getCached<Cryptocurrency[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
   const store = tx.objectStore(STORE_NAME);
+  const index = store.index('rank');
 
-  // Get all records and sort by rank
-  const allRecords = await store.getAll();
-  return allRecords
-    .sort((a, b) => (a as StoredCrypto).cmcRank - (b as StoredCrypto).cmcRank)
-    .map((item) => item as Cryptocurrency);
+  // Get all records sorted by rank efficiently using the index
+  const result = await index.getAll();
+  setCached(cacheKey, result);
+  return result;
 };
 
 export const getCryptoDataByPage = async (
   pageIndex: number,
   pageSize: number
 ): Promise<Cryptocurrency[]> => {
+  const cacheKey = getCacheKey('getCryptoDataByPage', pageIndex, pageSize);
+  const cached = getCached<Cryptocurrency[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
   const store = tx.objectStore(STORE_NAME);
   const index = store.index('rank');
 
-  // Get all records sorted by rank
-  const allRecords = await index.getAll();
+  // Use cursor to efficiently retrieve only the needed records
   const start = pageIndex * pageSize;
-  const end = start + pageSize;
+  const results: StoredCrypto[] = [];
+  
+  // Open cursor to iterate through records in rank order
+  const cursor = await index.openCursor();
+  let currentIndex = 0;
+  let resultIndex = 0;
+  
+  if (cursor) {
+    // Skip to the starting position
+    while (currentIndex < start) {
+      await cursor.continue();
+      if (!cursor.key) break; // End of records
+      currentIndex++;
+    }
+    
+    // Collect the required number of records
+    while (resultIndex < pageSize) {
+      if (!cursor.key) break; // End of records
+      results.push(cursor.value as StoredCrypto);
+      await cursor.continue();
+      resultIndex++;
+    }
+  }
 
-  return allRecords.slice(start, end).map((item) => item as unknown as Cryptocurrency);
+  const cryptoList = results.map((item) => item as Cryptocurrency);
+  setCached(cacheKey, cryptoList);
+  return cryptoList;
 };
 
 export const getCryptoCount = async (): Promise<number> => {
+  const cacheKey = getCacheKey('getCryptoCount');
+  const cached = getCached<number>(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
   const store = tx.objectStore(STORE_NAME);
-
-  return store.count();
+  const result = await store.count();
+  setCached(cacheKey, result);
+  return result;
 };
 
 export const getTopCryptos = async (limit: number): Promise<Cryptocurrency[]> => {
+  const cacheKey = getCacheKey('getTopCryptos', limit);
+  const cached = getCached<Cryptocurrency[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
-  const index = tx.store.index('rank');
-  const ranked = await index.getAll();
-  return ranked.slice(0, limit).map((item) => item as unknown as Cryptocurrency);
+  const store = tx.objectStore(STORE_NAME);
+  const index = store.index('rank');
+
+  // Use cursor to get only the top N records efficiently
+  const results: StoredCrypto[] = [];
+  const cursor = await index.openCursor();
+  
+  let count = 0;
+  if (cursor) {
+    while (count < limit) {
+      if (!cursor.key) break; // End of records
+      results.push(cursor.value as StoredCrypto);
+      await cursor.continue();
+      count++;
+    }
+  }
+
+  const cryptoList = results.map((item) => item as Cryptocurrency);
+  setCached(cacheKey, cryptoList);
+  return cryptoList;
 };
 
 export const getLastUpdated = async (): Promise<number | null> => {
+  const cacheKey = getCacheKey('getLastUpdated');
+  const cached = getCached<number | null>(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
-  const all = await tx.store.getAll();
-  if (!all.length) return null;
-  let maxTs = 0;
-  for (const item of all) {
-    if (typeof item.timestamp === 'number' && item.timestamp > maxTs) {
-      maxTs = item.timestamp;
-    }
+  const store = tx.objectStore(STORE_NAME);
+  const timestampIndex = store.index('timestamp');
+
+  // Get the record with the highest timestamp using cursor (last updated)
+  const cursor = await timestampIndex.openCursor(null, 'prevunique');
+  let result: number | null = null;
+  if (cursor && typeof cursor.value.timestamp === 'number') {
+    result = cursor.value.timestamp;
   }
-  return maxTs || null;
+  
+  setCached(cacheKey, result);
+  return result;
 };
 
 export const saveTopSnapshot = async (items: Cryptocurrency[]) => {
@@ -142,24 +269,45 @@ export const saveTopSnapshot = async (items: Cryptocurrency[]) => {
   };
   await store.put(record);
   await tx.done;
+  
+  // Invalidate the top snapshot cache
+  invalidateCache('getTopSnapshot');
 };
 
 export const getTopSnapshot = async (): Promise<{
   items: Cryptocurrency[];
   timestamp: number;
 } | null> => {
+  const cacheKey = getCacheKey('getTopSnapshot');
+  const cached = getCached<{ items: Cryptocurrency[]; timestamp: number } | null>(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(META_STORE, 'readonly');
   const store = tx.objectStore(META_STORE);
   const record = (await store.get('snapshot-top10')) as SnapshotRecord | undefined;
-  if (!record) return null;
-  return { items: record.items, timestamp: record.timestamp };
+  let result = null;
+  if (record) {
+    result = { items: record.items, timestamp: record.timestamp };
+  }
+  setCached(cacheKey, result);
+  return result;
 };
 
 export const getCachedTotalCount = async (): Promise<number | null> => {
+  const cacheKey = getCacheKey('getCachedTotalCount');
+  const cached = getCached<number | null>(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
   const db = await initDB();
   const tx = db.transaction(META_STORE, 'readonly');
   const store = tx.objectStore(META_STORE);
   const record = (await store.get('total-count')) as MetaTotalCount | undefined;
-  return record?.value ?? null;
+  const result = record?.value ?? null;
+  setCached(cacheKey, result);
+  return result;
 };
