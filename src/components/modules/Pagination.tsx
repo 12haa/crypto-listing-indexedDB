@@ -1,5 +1,5 @@
 import React from 'react';
-import PaginationButton from '@/components/PaginationButton';
+import PaginationButton from '@/components/elements/PaginationButton';
 
 interface PaginationProps {
   currentPage: number;

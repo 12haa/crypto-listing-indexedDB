@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useCryptoStore } from '../store/cryptoStore';
-import CryptoItem from '@/components/CryptoItem';
-import CryptoItemSkeleton from '@/components/CryptoItemSkeleton';
-import Pagination from '@/components/Pagination';
-import SearchBar from '@/components/SearchBar';
-import StatsBar from '@/components/StatsBar';
-import TableHeader from '@/components/TableHeader';
-import StickyTop10 from '@/components/StickyTop10';
+
+import CryptoItem from '@/components/modules/CryptoItem';
+import CryptoItemSkeleton from '@/components/modules/CryptoItemSkeleton';
+import Pagination from '@/components/modules/Pagination';
+import SearchBar from '@/components/elements/SearchBar';
+import StatsBar from '@/components/modules/StatsBar';
+import TableHeader from '@/components/elements/TableHeader';
+import StickyTop10 from '@/components/modules/StickyTop10';
 import { Cryptocurrency } from '@/services/api';
+import { useCryptoStore } from '@/store/cryptoStore';
 
 const CryptoListPage = () => {
   const {
