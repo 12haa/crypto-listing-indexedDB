@@ -1,7 +1,6 @@
-import { CryptoCurrencyListResponse } from '@/app/types/cryptoTypes/cryptoTypes';
+
 import { api } from '@/config/apiConfig';
-
-
+import { CryptoCurrencyListResponse } from '@/types/cryptoTypes/cryptoTypes';
 export const fetchCryptocurrenciesPage = async (
   page: number,
   pageSize: number,

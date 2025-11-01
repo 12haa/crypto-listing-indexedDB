@@ -7,7 +7,8 @@ import SearchBar from '@/components/elements/SearchBar';
 import StatsBar from '@/components/modules/StatsBar';
 import TableHeader from '@/components/elements/TableHeader';
 import { useCryptoStore } from '@/store/cryptoStore';
-import { Cryptocurrency } from '@/app/types';
+import { Cryptocurrency } from '@/types';
+
 
 const CryptoListPage = () => {
   const {

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 import { formatCurrency, formatNumber } from '@/utils/formatters';
-import { Cryptocurrency } from '@/app/types/cryptoTypes/cryptoTypes';
+
 import CryptoItemSkeleton from './CryptoItemSkeleton';
+import { Cryptocurrency } from '@/types';
 
 interface CryptoItemProps {
   crypto: Cryptocurrency;

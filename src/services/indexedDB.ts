@@ -1,11 +1,6 @@
+import { CacheEntry, MetaTotalCount, SnapshotRecord, StoredCrypto } from '@/types';
+import { Cryptocurrency, CryptoCurrency } from '@/types/cryptoTypes/cryptoTypes';
 import { openDB, IDBPDatabase } from 'idb';
-import type {
-  StoredCrypto,
-  SnapshotRecord,
-  MetaTotalCount,
-  CacheEntry,
-} from '@/app/types/services/indexedDBTypes';
-import { Cryptocurrency, CryptoCurrency } from '@/app/types/cryptoTypes/cryptoTypes';
 
 const DB_NAME = process.env.DB_NAME || 'CryptoDB';
 const DB_VERSION = Number(process.env.DB_VERSION) || 4;
