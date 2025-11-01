@@ -7,10 +7,11 @@ import type {
   CacheEntry,
 } from '@/app/types/services/indexedDBTypes';
 
-const DB_NAME = 'CryptoDB';
-const DB_VERSION = 4;
-const STORE_NAME = 'cryptocurrencies';
-const META_STORE = 'meta';
+const DB_NAME = process.env.DB_NAME || 'CryptoDB';
+const DB_VERSION = Number(process.env.DB_VERSION) || 4;
+const STORE_NAME = process.env.STORE_NAME || 'cryptocurrencies';
+const META_STORE = process.env.META_STORE || 'meta';
+
 
 // Simple in-memory cache to prevent repeated DB calls for the same data
 const cache = new Map<string, CacheEntry<unknown>>();
