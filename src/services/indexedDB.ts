@@ -7,13 +7,13 @@ const DB_VERSION = Number(process.env.DB_VERSION) || 4;
 const STORE_NAME = process.env.STORE_NAME || 'cryptocurrencies';
 const META_STORE = process.env.META_STORE || 'meta';
 
-// Simple in-memory cache to prevent repeated DB calls for the same data
+
 const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 30000; // 30 seconds TTL
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
-// Cache helper functions
+
 const getCacheKey = (operation: string, ...args: unknown[]): string => {
   return `${operation}:${JSON.stringify(args)}`;
 };
@@ -47,9 +47,7 @@ export const initDB = async () => {
           store.createIndex('rank', 'cmcRank', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
         } else if (oldVersion < 4) {
-          // If upgrading to version 4, add indexes for efficient queries
-          // Note: Indexes will be automatically available on next database creation
-          // This upgrade path is optional - existing data will work without indexes
+
         }
         if (oldVersion < 2) {
           if (!db.objectStoreNames.contains(META_STORE)) {
@@ -104,7 +102,7 @@ export const getCryptoDataByPage = async (
   const tx = db.transaction(STORE_NAME, 'readonly');
   const index = tx.objectStore(STORE_NAME).index('rank');
 
-  // Use getAll() with range for better performance than manual cursor iteration
+
   const start = pageIndex * pageSize;
   const end = start + pageSize;
   const results = await index.getAll();
@@ -126,7 +124,7 @@ export const saveTopSnapshot = async (items: Cryptocurrency[]) => {
   await store.put(record);
   await tx.done;
 
-  // Invalidate the top snapshot cache
+
   invalidateCache('getTopSnapshot');
 };
 

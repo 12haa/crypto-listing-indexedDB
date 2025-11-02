@@ -19,7 +19,7 @@ const Pagination: React.FC<PaginationProps> = ({
   loading,
 }) => {
   const maxVisible = 10;
-  const current = currentPage + 1; // convert to 1-based for math
+  const current = currentPage + 1;
 
   let start = Math.max(1, current - Math.floor(maxVisible / 2));
   const end = Math.min(totalPages, start + maxVisible - 1);

@@ -47,34 +47,32 @@ const CryptoItem: React.FC<CryptoItemProps> = ({
   hasFreshData = false,
   isLoading = false,
 }) => {
-  // Determine if we should initially show cached data
+
   const shouldShowCachedInitially = isSticky && cachedCrypto && (!hasFreshData || isLoading);
   const [showCached, setShowCached] = useState(shouldShowCachedInitially);
 
   useEffect(() => {
-    // Reset state when props change
+
     const newShouldShowCached = isSticky && cachedCrypto && (!hasFreshData || isLoading);
     if (!isSticky) {
       setShowCached(false);
     } else if (newShouldShowCached && !showCached) {
       setShowCached(true);
     } else if (isSticky && hasFreshData && showCached && !isLoading) {
-      // Show cached data for a brief moment before transitioning to fresh
+
       const timer = setTimeout(() => {
         setShowCached(false);
-      }, 100); // Small delay to make the transition smooth
+      }, 100);
 
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSticky, hasFreshData, isLoading, cachedCrypto]);
 
-  // Determine which crypto data to display
-  // Show cached if in sticky mode, we want to show cached, and we have cached data
-  // Otherwise show fresh crypto data
+
   const displayCrypto = isSticky && showCached && cachedCrypto ? cachedCrypto : crypto;
 
-  // Extract USD quote data from the quotes array
+
   const usdQuote = displayCrypto.quotes.find((quote) => quote.name === 'USD');
 
   const price = usdQuote?.price || 0;
@@ -83,7 +81,7 @@ const CryptoItem: React.FC<CryptoItemProps> = ({
   const volume24h = usdQuote?.volume24h;
   const circulatingSupply = displayCrypto.circulatingSupply;
 
-  // Show skeleton if sticky mode and loading with no cached data
+
   if (isSticky && isLoading && !cachedCrypto) {
     return <CryptoItemSkeleton />;
   }
